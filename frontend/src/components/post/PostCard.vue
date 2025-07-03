@@ -1,0 +1,172 @@
+<template>
+  <div class="post-card">
+    <div class="post-header">
+      <div class="user-info">
+        <el-avatar :src="post.user_avatar" :size="40">
+          <el-icon><User /></el-icon>
+        </el-avatar>
+        <div class="user-details">
+          <div class="username">{{ post.username }}</div>
+          <div class="time">{{ fromNow(post.created_at) }}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="post-content">
+      <h3 class="post-title">{{ post.title }}</h3>
+      <p v-if="post.description" class="post-description">{{ post.description }}</p>
+      
+      <!-- 根据内容类型显示不同内容 -->
+      <div v-if="post.content_type === 'image'" class="post-image">
+        <el-image :src="getFileUrl(post.file_path)" fit="cover" />
+      </div>
+      
+      <div v-else-if="post.content_type === 'music'" class="post-audio">
+        <audio controls :src="getFileUrl(post.file_path)"></audio>
+      </div>
+      
+      <div v-else-if="post.content_type === 'text'" class="post-text">
+        <p>{{ post.content_text }}</p>
+      </div>
+    </div>
+    
+    <div class="post-actions">
+      <el-button text @click="handleLike">
+        <el-icon><Heart /></el-icon>
+        {{ post.likes_count || 0 }}
+      </el-button>
+      <el-button text @click="handleComment">
+        <el-icon><ChatDotSquare /></el-icon>
+        {{ post.comments_count || 0 }}
+      </el-button>
+      <el-button text @click="handleShare">
+        <el-icon><Share /></el-icon>
+        分享
+      </el-button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { User, Heart, ChatDotSquare, Share } from '@element-plus/icons-vue'
+import { fromNow, getFileUrl } from '@/utils'
+
+defineProps({
+  post: {
+    type: Object,
+    required: true
+  }
+})
+
+// 点赞
+const handleLike = () => {
+  console.log('点赞')
+}
+
+// 评论
+const handleComment = () => {
+  console.log('评论')
+}
+
+// 分享
+const handleShare = () => {
+  console.log('分享')
+}
+</script>
+
+<style lang="scss" scoped>
+.post-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s;
+  
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.post-header {
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    
+    .user-details {
+      .username {
+        font-weight: 600;
+        color: #303133;
+        font-size: 14px;
+      }
+      
+      .time {
+        color: #909399;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+.post-content {
+  .post-title {
+    font-size: 18px;
+    color: #303133;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  
+  .post-description {
+    color: #606266;
+    margin-bottom: 15px;
+    line-height: 1.6;
+  }
+  
+  .post-image {
+    margin-bottom: 15px;
+    
+    :deep(.el-image) {
+      width: 100%;
+      max-height: 400px;
+      border-radius: 8px;
+    }
+  }
+  
+  .post-audio {
+    margin-bottom: 15px;
+    
+    audio {
+      width: 100%;
+    }
+  }
+  
+  .post-text {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    
+    p {
+      color: #303133;
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+}
+
+.post-actions {
+  display: flex;
+  gap: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+  
+  .el-button {
+    color: #909399;
+    
+    &:hover {
+      color: #409EFF;
+    }
+  }
+}
+</style>

@@ -1,0 +1,52 @@
+<template>
+  <div class="post-list">
+    <div v-if="loading" class="loading-container">
+      <el-skeleton :rows="3" animated />
+    </div>
+    
+    <div v-else-if="posts.length === 0" class="empty-container">
+      <el-empty description="暂无内容">
+        <el-button type="primary" @click="$router.push('/post/create')">
+          创建第一个帖子
+        </el-button>
+      </el-empty>
+    </div>
+    
+    <div v-else class="posts-container">
+      <div v-for="post in posts" :key="post.id" class="post-item">
+        <PostCard :post="post" />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  posts: {
+    type: Array,
+    default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  }
+})
+</script>
+
+<style lang="scss" scoped>
+.post-list {
+  .loading-container {
+    padding: 20px;
+  }
+  
+  .empty-container {
+    padding: 40px 20px;
+  }
+  
+  .posts-container {
+    .post-item {
+      margin-bottom: 20px;
+    }
+  }
+}
+</style>
