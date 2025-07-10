@@ -6,22 +6,15 @@ const fs = require('fs');
 const ensureDirectoryExists = (dir) => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
-        console.log(`Created directory: ${dir}`);
     }
 };
 
 // Configure storage
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        console.log('File upload destination:', { 
-            fieldname: file.fieldname, 
-            mimetype: file.mimetype, 
-            content_type: req.body.content_type 
-        });
-        
         let uploadPath = '';
         
-        // Determine upload path based on content type or mime type
+        // Determine upload path based on content type
         if (req.body.content_type === 'image' || file.mimetype.startsWith('image/')) {
             uploadPath = path.join(__dirname, '../uploads/images');
         } else if (req.body.content_type === 'music' || file.mimetype.startsWith('audio/')) {
@@ -29,60 +22,42 @@ const storage = multer.diskStorage({
         } else if (file.fieldname === 'avatar') {
             uploadPath = path.join(__dirname, '../uploads/avatars');
         } else {
-            // Default fallback
             uploadPath = path.join(__dirname, '../uploads');
         }
         
         ensureDirectoryExists(uploadPath);
-        console.log(`File will be saved to: ${uploadPath}`);
         cb(null, uploadPath);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname);
         const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filename = `${uniqueSuffix}_${sanitizedName}`;
-        
-        console.log(`Generated filename: ${filename}`);
-        cb(null, filename);
+        cb(null, `${uniqueSuffix}_${sanitizedName}`);
     }
 });
 
 // File filter
 const fileFilter = (req, file, cb) => {
-    console.log('File filter check:', {
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        fieldname: file.fieldname,
-        content_type: req.body.content_type
-    });
-
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     const allowedAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg'];
     
     if (req.body.content_type === 'image' || file.fieldname === 'avatar') {
         if (allowedImageTypes.includes(file.mimetype)) {
-            console.log('Image file approved');
             cb(null, true);
         } else {
-            console.log('Image file rejected - invalid type');
             cb(new Error('Only image files are allowed'), false);
         }
     } else if (req.body.content_type === 'music') {
         if (allowedAudioTypes.includes(file.mimetype)) {
-            console.log('Audio file approved');
             cb(null, true);
         } else {
-            console.log('Audio file rejected - invalid type');
             cb(new Error('Only audio files are allowed'), false);
         }
     } else {
         // For general uploads, allow both images and audio
         if ([...allowedImageTypes, ...allowedAudioTypes].includes(file.mimetype)) {
-            console.log('General file approved');
             cb(null, true);
         } else {
-            console.log('File rejected - unsupported type');
             cb(new Error('File type not supported'), false);
         }
     }
@@ -91,17 +66,9 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 100 * 1024 * 1024, // 100MB
-        files: 1
+        fileSize: 100 * 1024 * 1024 // 100MB
     },
     fileFilter: fileFilter
 });
-
-// Log upload events
-const originalSingle = upload.single.bind(upload);
-upload.single = function(fieldName) {
-    console.log(`Setting up single file upload for field: ${fieldName}`);
-    return originalSingle(fieldName);
-};
 
 module.exports = upload;

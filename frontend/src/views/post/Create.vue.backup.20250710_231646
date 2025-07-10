@@ -34,7 +34,7 @@
               Image
             </el-radio-button>
             <el-radio-button label="music">
-              <el-icon><Microphone /></el-icon>
+              <el-icon><Headphone /></el-icon>
               Music
             </el-radio-button>
           </el-radio-group>
@@ -76,7 +76,7 @@
           >
             <div v-if="!uploadedFile" class="upload-content">
               <el-icon class="el-icon--upload">
-                <component :is="postForm.content_type === 'image' ? Picture : Microphone" />
+                <component :is="postForm.content_type === 'image' ? Picture : Headphone" />
               </el-icon>
               <div class="el-upload__text">
                 Drop {{ postForm.content_type }} here or <em>click to upload</em>
@@ -104,7 +104,7 @@
                 <!-- Audio Preview -->
                 <div v-else-if="postForm.content_type === 'music'" class="audio-preview">
                   <div class="audio-info">
-                    <el-icon class="audio-icon"><Microphone /></el-icon>
+                    <el-icon class="audio-icon"><Headphone /></el-icon>
                     <div class="file-details">
                       <div class="file-name">{{ uploadedFile.name }}</div>
                       <div class="file-size">{{ formatFileSize(uploadedFile.size) }}</div>
@@ -156,17 +156,6 @@
             Cancel
           </el-button>
         </el-form-item>
-
-        <!-- Debug Info (development only) -->
-        <div v-if="showDebug" class="debug-info">
-          <h4>Debug Information:</h4>
-          <p><strong>Form Valid:</strong> {{ isFormValid }}</p>
-          <p><strong>Content Type:</strong> {{ postForm.content_type }}</p>
-          <p><strong>Title:</strong> {{ postForm.title }}</p>
-          <p><strong>Has File:</strong> {{ !!uploadedFile }}</p>
-          <p><strong>Has Text:</strong> {{ !!postForm.content_text }}</p>
-          <p><strong>File Info:</strong> {{ uploadedFile ? uploadedFile.name : 'No file' }}</p>
-        </div>
       </el-form>
     </div>
   </div>
@@ -177,7 +166,7 @@ import { ref, reactive, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  Document, Picture, Microphone, Upload, Refresh, ArrowLeft 
+  Document, Picture, Headphone, Upload, Refresh, ArrowLeft 
 } from '@element-plus/icons-vue'
 import { createPost } from '@/api/posts'
 import { formatFileSize } from '@/utils'
@@ -189,7 +178,6 @@ const uploadRef = ref()
 const submitting = ref(false)
 const uploadedFile = ref(null)
 const fileList = ref([])
-const showDebug = ref(false) // Set to true for debugging
 
 // Form data
 const postForm = reactive({
@@ -220,6 +208,18 @@ const postRules = {
       }, 
       trigger: 'blur' 
     }
+  ],
+  file: [
+    { 
+      validator: (rule, value, callback) => {
+        if ((postForm.content_type === 'image' || postForm.content_type === 'music') && !uploadedFile.value) {
+          callback(new Error('Please upload a file'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'change' 
+    }
   ]
 }
 
@@ -242,26 +242,11 @@ const uploadTip = computed(() => {
   return ''
 })
 
-// Fixed: Check for valid form state correctly
 const isFormValid = computed(() => {
-  console.log('Computing form validity:', {
-    title: postForm.title?.trim(),
-    content_type: postForm.content_type,
-    content_text: postForm.content_text?.trim(),
-    uploadedFile: !!uploadedFile.value
-  })
-  
   if (!postForm.title?.trim()) return false
-  
-  if (postForm.content_type === 'text') {
-    return !!postForm.content_text?.trim()
-  }
-  
-  if (postForm.content_type === 'image' || postForm.content_type === 'music') {
-    return !!uploadedFile.value
-  }
-  
-  return false
+  if (postForm.content_type === 'text' && !postForm.content_text?.trim()) return false
+  if ((postForm.content_type === 'image' || postForm.content_type === 'music') && !uploadedFile.value) return false
+  return true
 })
 
 // Handle content type change
@@ -275,10 +260,8 @@ const handleContentTypeChange = () => {
   }
 }
 
-// Fixed: File upload handlers
+// File upload handlers
 const beforeUpload = (file) => {
-  console.log('beforeUpload called with:', file.name, file.type, file.size)
-  
   const isValidType = checkFileType(file)
   const isValidSize = file.size < 100 * 1024 * 1024 // 100MB
 
@@ -292,8 +275,7 @@ const beforeUpload = (file) => {
     return false
   }
 
-  // Return false to prevent auto upload but allow file processing
-  return false
+  return false // Prevent auto upload
 }
 
 const checkFileType = (file) => {
@@ -305,90 +287,41 @@ const checkFileType = (file) => {
   return false
 }
 
-const handleFileChange = (file, fileList) => {
-  console.log('handleFileChange called:', file, fileList)
-  
-  if (!file.raw) {
-    console.log('No raw file found')
-    return
+const handleFileChange = (file) => {
+  if (file.raw && beforeUpload(file.raw)) {
+    const fileObj = file.raw
+    postForm.file = fileObj
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(fileObj)
+    
+    uploadedFile.value = {
+      name: fileObj.name,
+      size: fileObj.size,
+      type: fileObj.type,
+      preview: previewUrl
+    }
+    
+    fileList.value = [file]
+    ElMessage.success('File uploaded successfully')
   }
-  
-  const rawFile = file.raw
-  
-  // Check file validity
-  if (!checkFileType(rawFile)) {
-    ElMessage.error('Invalid file type')
-    handleFileRemove()
-    return
-  }
-  
-  if (rawFile.size >= 100 * 1024 * 1024) {
-    ElMessage.error('File size cannot exceed 100MB')
-    handleFileRemove()
-    return
-  }
-  
-  // Set file to form
-  postForm.file = rawFile
-  
-  // Create preview URL
-  const previewUrl = URL.createObjectURL(rawFile)
-  
-  uploadedFile.value = {
-    name: rawFile.name,
-    size: rawFile.size,
-    type: rawFile.type,
-    preview: previewUrl
-  }
-  
-  ElMessage.success(`File "${rawFile.name}" uploaded successfully`)
-  
-  // Force reactivity update
-  nextTick(() => {
-    console.log('File uploaded, form valid:', isFormValid.value)
-  })
 }
 
 const handleFileRemove = () => {
-  console.log('handleFileRemove called')
-  
   if (uploadedFile.value?.preview) {
     URL.revokeObjectURL(uploadedFile.value.preview)
   }
-  
   uploadedFile.value = null
   postForm.file = null
   fileList.value = []
-  
-  if (uploadRef.value) {
-    uploadRef.value.clearFiles()
-  }
-  
-  nextTick(() => {
-    console.log('File removed, form valid:', isFormValid.value)
-  })
 }
 
 // Submit post
 const submitPost = async () => {
-  console.log('submitPost called, form valid:', isFormValid.value)
-  console.log('Form data:', {
-    title: postForm.title,
-    content_type: postForm.content_type,
-    content_text: postForm.content_text,
-    file: postForm.file?.name
-  })
-  
   if (!postFormRef.value) return
   
   try {
-    // Validate form
     await postFormRef.value.validate()
-    
-    if (!isFormValid.value) {
-      ElMessage.error('Please complete all required fields')
-      return
-    }
     
     submitting.value = true
     
@@ -403,16 +336,8 @@ const submitPost = async () => {
     if (postForm.content_type === 'text') {
       formData.append('content_text', postForm.content_text.trim())
     } else if (postForm.file) {
-      formData.append('file', postForm.file, postForm.file.name)
+      formData.append('file', postForm.file)
     }
-
-    console.log('Sending FormData:', {
-      title: formData.get('title'),
-      content_type: formData.get('content_type'),
-      description: formData.get('description'),
-      content_text: formData.get('content_text'),
-      file: formData.get('file')?.name
-    })
 
     const response = await createPost(formData)
     
@@ -423,8 +348,12 @@ const submitPost = async () => {
       URL.revokeObjectURL(uploadedFile.value.preview)
     }
     
-    // Redirect to home
-    router.push('/home')
+    // Redirect to post detail or home
+    if (response.data?.id) {
+      router.push({ name: 'PostDetail', params: { id: response.data.id } })
+    } else {
+      router.push('/home')
+    }
     
   } catch (error) {
     console.error('Failed to create post:', error)
@@ -601,25 +530,6 @@ const resetForm = () => {
       .el-icon {
         margin-right: 6px;
       }
-    }
-  }
-  
-  .debug-info {
-    margin-top: 30px;
-    padding: 15px;
-    background: #f5f7fa;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    
-    h4 {
-      margin-top: 0;
-      color: #409EFF;
-    }
-    
-    p {
-      margin: 5px 0;
-      font-size: 14px;
-      font-family: monospace;
     }
   }
 }

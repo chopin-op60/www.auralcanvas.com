@@ -8,120 +8,198 @@ class PostService extends BaseService {
     async createPost(postData) {
         const validContentTypes = ['image', 'text', 'music'];
         if (!validContentTypes.includes(postData.content_type)) {
-            throw new Error('无效的内容类型');
+            throw new Error('Invalid content type');
         }
 
-        return await this.create(postData);
+        // Validate required fields
+        if (!postData.title || !postData.title.trim()) {
+            throw new Error('Title is required');
+        }
+
+        if (!postData.user_id) {
+            throw new Error('User ID is required');
+        }
+
+        // Ensure content completeness
+        if (postData.content_type === 'text' && (!postData.content_text || !postData.content_text.trim())) {
+            throw new Error('Text content is required for text posts');
+        }
+
+        if ((postData.content_type === 'image' || postData.content_type === 'music') && !postData.file_path) {
+            throw new Error('File is required for image and music posts');
+        }
+
+        try {
+            const result = await this.create(postData);
+            console.log('Post created successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Database error in createPost:', error);
+            throw new Error(`Failed to create post: ${error.message}`);
+        }
     }
 
-    async getPostsWithUserInfo(offset, limit, userId = null) {
-        let whereClause = '';
-        let params = [];
-        
-        if (userId) {
-            whereClause = 'WHERE p.user_id = ?';
-            params = [userId];
-        }
+    async getPostsWithUserInfo(offset = 0, limit = 10, userId = null) {
+        try {
+            let whereClause = '';
+            let params = [];
+            
+            if (userId) {
+                whereClause = 'WHERE p.user_id = ?';
+                params = [userId];
+            }
 
-        const query = `
-            SELECT 
-                p.*,
-                u.username,
-                u.avatar as user_avatar,
-                (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comments_count
-            FROM posts p 
-            JOIN users u ON p.user_id = u.id 
-            ${whereClause}
-            ORDER BY p.created_at DESC 
-            LIMIT ? OFFSET ?
-        `;
-        
-        const [rows] = await this.db.execute(query, [...params, limit, offset]);
-        
-        const countQuery = `SELECT COUNT(*) as total FROM posts p ${whereClause}`;
-        const [countResult] = await this.db.execute(countQuery, params);
-        
-        return {
-            data: rows,
-            total: countResult[0].total
-        };
+            const query = `
+                SELECT 
+                    p.id,
+                    p.user_id,
+                    p.title,
+                    p.description,
+                    p.content_type,
+                    p.file_path,
+                    p.content_text,
+                    p.likes_count,
+                    p.created_at,
+                    p.updated_at,
+                    u.username,
+                    u.avatar as user_avatar,
+                    (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as actual_likes_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comments_count
+                FROM posts p 
+                JOIN users u ON p.user_id = u.id 
+                ${whereClause}
+                ORDER BY p.created_at DESC 
+                LIMIT ? OFFSET ?
+            `;
+            
+            const [rows] = await this.db.execute(query, [...params, limit, offset]);
+            
+            const countQuery = `SELECT COUNT(*) as total FROM posts p ${whereClause}`;
+            const [countResult] = await this.db.execute(countQuery, params);
+            
+            return {
+                data: rows,
+                total: countResult[0].total
+            };
+        } catch (error) {
+            console.error('Database error in getPostsWithUserInfo:', error);
+            throw new Error(`Failed to get posts: ${error.message}`);
+        }
     }
 
     async getPostById(id) {
-        const query = `
-            SELECT 
-                p.*,
-                u.username,
-                u.avatar as user_avatar,
-                (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as likes_count,
-                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comments_count
-            FROM posts p 
-            JOIN users u ON p.user_id = u.id 
-            WHERE p.id = ?
-        `;
-        
-        const [rows] = await this.db.execute(query, [id]);
-        return rows[0] || null;
+        try {
+            const query = `
+                SELECT 
+                    p.id,
+                    p.user_id,
+                    p.title,
+                    p.description,
+                    p.content_type,
+                    p.file_path,
+                    p.content_text,
+                    p.likes_count,
+                    p.created_at,
+                    p.updated_at,
+                    u.username,
+                    u.avatar as user_avatar,
+                    (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as actual_likes_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comments_count
+                FROM posts p 
+                JOIN users u ON p.user_id = u.id 
+                WHERE p.id = ?
+            `;
+            
+            const [rows] = await this.db.execute(query, [id]);
+            return rows[0] || null;
+        } catch (error) {
+            console.error('Database error in getPostById:', error);
+            throw new Error(`Failed to get post: ${error.message}`);
+        }
     }
 
     async updatePost(id, userId, updateData) {
-        // 检查帖子是否存在且属于用户
-        const post = await this.findById(id);
-        if (!post) {
-            throw new Error('帖子不存在');
-        }
-        
-        if (post.user_id !== userId) {
-            throw new Error('无权限编辑此帖子');
-        }
-
-        const allowedFields = ['title', 'description', 'content_text'];
-        const filteredData = {};
-        
-        for (const field of allowedFields) {
-            if (updateData[field] !== undefined) {
-                filteredData[field] = updateData[field];
+        try {
+            // Check if post exists and belongs to user
+            const post = await this.findById(id);
+            if (!post) {
+                throw new Error('Post not found');
             }
-        }
+            
+            if (post.user_id !== userId) {
+                throw new Error('Unauthorized to edit this post');
+            }
 
-        return await this.update(id, filteredData);
+            const allowedFields = ['title', 'description', 'content_text'];
+            const filteredData = {};
+            
+            for (const field of allowedFields) {
+                if (updateData[field] !== undefined) {
+                    filteredData[field] = updateData[field];
+                }
+            }
+
+            if (Object.keys(filteredData).length === 0) {
+                throw new Error('No valid fields to update');
+            }
+
+            return await this.update(id, filteredData);
+        } catch (error) {
+            console.error('Database error in updatePost:', error);
+            throw new Error(`Failed to update post: ${error.message}`);
+        }
     }
 
     async deletePost(id, userId) {
-        const post = await this.findById(id);
-        if (!post) {
-            throw new Error('帖子不存在');
-        }
-        
-        if (post.user_id !== userId) {
-            throw new Error('无权限删除此帖子');
-        }
+        try {
+            const post = await this.findById(id);
+            if (!post) {
+                throw new Error('Post not found');
+            }
+            
+            if (post.user_id !== userId) {
+                throw new Error('Unauthorized to delete this post');
+            }
 
-        return await this.delete(id);
+            return await this.delete(id);
+        } catch (error) {
+            console.error('Database error in deletePost:', error);
+            throw new Error(`Failed to delete post: ${error.message}`);
+        }
     }
 
     async toggleLike(postId, userId) {
-        // 检查是否已点赞
-        const [existingLike] = await this.db.execute(
-            'SELECT id FROM likes WHERE post_id = ? AND user_id = ?',
-            [postId, userId]
-        );
+        try {
+            // Check if post exists
+            const post = await this.findById(postId);
+            if (!post) {
+                throw new Error('Post not found');
+            }
 
-        if (existingLike.length > 0) {
-            // 取消点赞
-            await this.db.execute(
-                'DELETE FROM likes WHERE post_id = ? AND user_id = ?',
+            // Check if already liked
+            const [existingLike] = await this.db.execute(
+                'SELECT id FROM likes WHERE post_id = ? AND user_id = ?',
                 [postId, userId]
             );
-            return { liked: false };
-        } else {
-            // 添加点赞
-            await this.db.execute(
-                'INSERT INTO likes (post_id, user_id) VALUES (?, ?)',
-                [postId, userId]
-            );
-            return { liked: true };
+
+            if (existingLike.length > 0) {
+                // Remove like
+                await this.db.execute(
+                    'DELETE FROM likes WHERE post_id = ? AND user_id = ?',
+                    [postId, userId]
+                );
+                return { liked: false };
+            } else {
+                // Add like
+                await this.db.execute(
+                    'INSERT INTO likes (post_id, user_id) VALUES (?, ?)',
+                    [postId, userId]
+                );
+                return { liked: true };
+            }
+        } catch (error) {
+            console.error('Database error in toggleLike:', error);
+            throw new Error(`Failed to toggle like: ${error.message}`);
         }
     }
 }
