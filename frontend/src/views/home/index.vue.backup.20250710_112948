@@ -1,19 +1,19 @@
 <template>
   <div class="home-page">
     <div class="welcome-banner">
-      <h1>Welcome to AuralCanvas</h1>
-      <p>Share your creativity and discover amazing multimedia content</p>
+      <h1>欢迎来到 AuralCanvas</h1>
+      <p>分享您的创意，发现更多精彩内容</p>
     </div>
     
     <div class="content-tabs">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="Latest" name="latest">
+        <el-tab-pane label="最新" name="latest">
           <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
-        <el-tab-pane label="Trending" name="hot">
+        <el-tab-pane label="热门" name="hot">
           <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
-        <el-tab-pane label="Following" name="following" v-if="userStore.isLoggedIn">
+        <el-tab-pane label="关注" name="following" v-if="userStore.isLoggedIn">
           <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
       </el-tabs>
@@ -31,24 +31,24 @@ const activeTab = ref('latest')
 const posts = ref([])
 const loading = ref(false)
 
-// Switch tabs
+// 切换标签页
 const handleTabChange = (tab) => {
-  console.log('Switched to:', tab)
-  // TODO: Load different content based on tab
+  console.log('切换到:', tab)
+  // TODO: 根据标签页加载不同内容
 }
 
-// Load posts list
+// 加载帖子列表
 const loadPosts = async () => {
   loading.value = true
   try {
-    // TODO: Call API to get posts
+    // TODO: 调用API获取帖子
     // const response = await getPostList()
     // posts.value = response.data.posts
     
-    // Temporary data
+    // 临时数据
     posts.value = []
   } catch (error) {
-    console.error('Failed to load posts:', error)
+    console.error('加载帖子失败:', error)
   } finally {
     loading.value = false
   }

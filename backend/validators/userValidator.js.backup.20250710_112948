@@ -1,69 +1,69 @@
-// User data validation
+// 用户数据验证
 class UserValidator {
-    // Validate registration data
+    // 验证注册数据
     validateRegister({ username, email, password }) {
         const errors = [];
 
-        // Username validation
+        // 用户名验证
         if (!username || typeof username !== 'string') {
-            errors.push('Username cannot be empty');
+            errors.push('用户名不能为空');
         } else if (username.length < 3 || username.length > 20) {
-            errors.push('Username must be between 3-20 characters');
+            errors.push('用户名长度必须在3-20个字符之间');
         } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            errors.push('Username can only contain letters, numbers and underscores');
+            errors.push('用户名只能包含字母、数字和下划线');
         }
 
-        // Email validation
+        // 邮箱验证
         if (!email || typeof email !== 'string') {
-            errors.push('Email cannot be empty');
+            errors.push('邮箱不能为空');
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errors.push('Invalid email format');
+            errors.push('邮箱格式不正确');
         }
 
-        // Password validation
+        // 密码验证
         if (!password || typeof password !== 'string') {
-            errors.push('Password cannot be empty');
+            errors.push('密码不能为空');
         } else if (password.length < 6) {
-            errors.push('Password must be at least 6 characters');
+            errors.push('密码长度至少6个字符');
         }
 
         return errors;
     }
 
-    // Validate login data
+    // 验证登录数据
     validateLogin({ username, password }) {
         const errors = [];
 
-        // Username validation
+        // 用户名验证
         if (!username || typeof username !== 'string') {
-            errors.push('Username cannot be empty');
+            errors.push('用户名不能为空');
         }
 
-        // Password validation
+        // 密码验证
         if (!password || typeof password !== 'string') {
-            errors.push('Password cannot be empty');
+            errors.push('密码不能为空');
         }
 
         return errors;
     }
 
-    // Validate user update data
+    // 验证更新用户数据
     validateUpdate(data) {
         const errors = [];
         const { username, email } = data;
 
-        // If username is provided, validate format
+        // 如果提供了用户名，验证格式
         if (username) {
             if (username.length < 3 || username.length > 20) {
-                errors.push('Username must be between 3-20 characters');
+                errors.push('用户名长度必须在3-20个字符之间');
             } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-                errors.push('Username can only contain letters, numbers and underscores');
+                errors.push('用户名只能包含字母、数字和下划线');
             }
         }
 
-        // If email is provided, validate format
+        // 如果提供了邮箱，验证格式
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errors.push('Invalid email format');
+            errors.push('邮箱格式不正确');
         }
 
         return errors;

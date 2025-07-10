@@ -2,8 +2,8 @@
   <div class="auth-page">
     <div class="auth-container">
       <div class="auth-header">
-        <h1>Welcome back to AuralCanvas</h1>
-        <p>Sign in to your account and continue your creative journey</p>
+        <h1>欢迎回到 AuralCanvas</h1>
+        <p>登录您的账户，继续创作之旅</p>
       </div>
       
       <el-form
@@ -16,7 +16,7 @@
         <el-form-item prop="username">
           <el-input
             v-model="loginForm.username"
-            placeholder="Username"
+            placeholder="用户名"
             size="large"
             :prefix-icon="User"
           />
@@ -26,7 +26,7 @@
           <el-input
             v-model="loginForm.password"
             type="password"
-            placeholder="Password"
+            placeholder="密码"
             size="large"
             :prefix-icon="Lock"
             show-password
@@ -41,15 +41,15 @@
             :loading="loading"
             @click="handleSubmit"
           >
-            Sign In
+            登录
           </el-button>
         </el-form-item>
       </el-form>
       
       <div class="auth-footer">
         <p>
-          Don't have an account?
-          <router-link to="/register" class="auth-link">Sign up now</router-link>
+          还没有账户？
+          <router-link to="/register" class="auth-link">立即注册</router-link>
         </p>
       </div>
     </div>
@@ -70,25 +70,25 @@ const userStore = useUserStore()
 const loginFormRef = ref()
 const loading = ref(false)
 
-// Form data
+// 表单数据
 const loginForm = reactive({
   username: '',
   password: ''
 })
 
-// Form validation rules
+// 表单验证规则
 const loginRules = {
   username: [
-    { required: true, message: 'Please enter your username', trigger: 'blur' },
-    { min: 3, max: 20, message: 'Username must be 3 to 20 characters', trigger: 'blur' }
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: 'Please enter your password', trigger: 'blur' },
-    { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少 6 个字符', trigger: 'blur' }
   ]
 }
 
-// Submit login
+// 提交登录
 const handleSubmit = async () => {
   if (!loginFormRef.value) return
   
@@ -98,14 +98,14 @@ const handleSubmit = async () => {
     loading.value = true
     await userStore.userLogin(loginForm)
     
-    ElMessage.success('Login successful')
+    ElMessage.success('登录成功')
     
-    // Redirect to original page or home
+    // 跳转到原来页面或首页
     const redirect = route.query.redirect || '/home'
     router.push(redirect)
     
   } catch (error) {
-    console.error('Login failed:', error)
+    console.error('登录失败:', error)
   } finally {
     loading.value = false
   }

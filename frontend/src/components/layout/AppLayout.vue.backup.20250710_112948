@@ -1,6 +1,6 @@
 <template>
   <div class="app-layout">
-    <!-- Top navigation -->
+    <!-- 顶部导航 -->
     <header class="app-header">
       <div class="header-content">
         <div class="header-left">
@@ -12,7 +12,7 @@
         <div class="header-center">
           <el-input
             v-model="searchKeyword"
-            placeholder="Search content or users..."
+            placeholder="搜索内容或用户..."
             class="search-input"
             @keyup.enter="handleSearch"
           >
@@ -26,7 +26,7 @@
           <template v-if="userStore.isLoggedIn">
             <el-button type="primary" @click="handleCreatePost">
               <el-icon><Plus /></el-icon>
-              Create
+              创建
             </el-button>
             
             <el-dropdown>
@@ -44,15 +44,15 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click="router.push('/profile')">
                     <el-icon><User /></el-icon>
-                    Profile
+                    个人资料
                   </el-dropdown-item>
                   <el-dropdown-item @click="router.push('/my-posts')">
                     <el-icon><Document /></el-icon>
-                    My Posts
+                    我的帖子
                   </el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>
-                    Sign Out
+                    退出登录
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -60,21 +60,21 @@
           </template>
           
           <template v-else>
-            <el-button @click="router.push('/login')">Sign In</el-button>
-            <el-button type="primary" @click="router.push('/register')">Sign Up</el-button>
+            <el-button @click="router.push('/login')">登录</el-button>
+            <el-button type="primary" @click="router.push('/register')">注册</el-button>
           </template>
         </div>
       </div>
     </header>
     
-    <!-- Main content area -->
+    <!-- 主要内容区域 -->
     <main class="app-main">
       <div class="main-content">
         <router-view />
       </div>
     </main>
     
-    <!-- Footer -->
+    <!-- 底部 -->
     <footer class="app-footer">
       <div class="footer-content">
         <p>&copy; 2024 AuralCanvas. All rights reserved.</p>
@@ -94,33 +94,33 @@ const router = useRouter()
 const userStore = useUserStore()
 const searchKeyword = ref('')
 
-// Search handling
+// 搜索处理
 const handleSearch = () => {
   if (!searchKeyword.value.trim()) return
   
-  // TODO: Implement search functionality
-  ElMessage.info('Search feature coming soon...')
+  // TODO: 实现搜索功能
+  ElMessage.info('搜索功能开发中...')
 }
 
-// Create post
+// 创建帖子
 const handleCreatePost = () => {
   router.push('/post/create')
 }
 
-// Sign out
+// 退出登录
 const handleLogout = async () => {
   try {
-    await ElMessageBox.confirm('Are you sure you want to sign out?', 'Confirm', {
-      confirmButtonText: 'Sign Out',
-      cancelButtonText: 'Cancel',
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
       type: 'warning'
     })
     
     userStore.logout()
-    ElMessage.success('Signed out successfully')
+    ElMessage.success('已退出登录')
     router.push('/home')
   } catch {
-    // User cancelled
+    // 用户取消
   }
 }
 </script>
