@@ -11,6 +11,7 @@ class PostService extends BaseService {
             throw new Error('Invalid content type');
         }
 
+        // Validate required fields
         if (!postData.title || !postData.title.trim()) {
             throw new Error('Title is required');
         }
@@ -19,6 +20,7 @@ class PostService extends BaseService {
             throw new Error('User ID is required');
         }
 
+        // Ensure content completeness
         if (postData.content_type === 'text' && (!postData.content_text || !postData.content_text.trim())) {
             throw new Error('Text content is required for text posts');
         }
@@ -39,20 +41,14 @@ class PostService extends BaseService {
 
     async getPostsWithUserInfo(offset = 0, limit = 10, userId = null) {
         try {
-            console.log('Fetching posts with params:', { offset, limit, userId });
-            
-            const safeOffset = parseInt(offset) || 0;
-            const safeLimit = parseInt(limit) || 10;
-            
             let whereClause = '';
-            let whereParams = [];
+            let params = [];
             
             if (userId) {
                 whereClause = 'WHERE p.user_id = ?';
-                whereParams = [parseInt(userId)];
+                params = [userId];
             }
 
-            // 使用不带参数占位符的查询
             const query = `
                 SELECT 
                     p.id,
@@ -66,37 +62,28 @@ class PostService extends BaseService {
                     p.created_at,
                     p.updated_at,
                     u.username,
-                    u.avatar as user_avatar
+                    u.avatar as user_avatar,
+                    (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as actual_likes_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comments_count
                 FROM posts p 
                 JOIN users u ON p.user_id = u.id 
                 ${whereClause}
                 ORDER BY p.created_at DESC 
-                LIMIT ${safeLimit} OFFSET ${safeOffset}
+                LIMIT ? OFFSET ?
             `;
             
-            console.log('Executing query:', query.replace(/\s+/g, ' ').trim());
-            
-            const [rows] = await this.db.execute(query, whereParams);
-            
-            // 添加计数字段
-            const postsWithCounts = rows.map(post => ({
-                ...post,
-                actual_likes_count: post.likes_count || 0,
-                comments_count: 0
-            }));
+            const [rows] = await this.db.execute(query, [...params, limit, offset]);
             
             const countQuery = `SELECT COUNT(*) as total FROM posts p ${whereClause}`;
-            const [countResult] = await this.db.execute(countQuery, whereParams);
-            
-            console.log('Query results:', { rowCount: postsWithCounts.length, total: countResult[0].total });
+            const [countResult] = await this.db.execute(countQuery, params);
             
             return {
-                data: postsWithCounts,
+                data: rows,
                 total: countResult[0].total
             };
         } catch (error) {
             console.error('Database error in getPostsWithUserInfo:', error);
-            throw error;
+            throw new Error(`Failed to get posts: ${error.message}`);
         }
     }
 
@@ -115,21 +102,16 @@ class PostService extends BaseService {
                     p.created_at,
                     p.updated_at,
                     u.username,
-                    u.avatar as user_avatar
+                    u.avatar as user_avatar,
+                    (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) as actual_likes_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) as comments_count
                 FROM posts p 
                 JOIN users u ON p.user_id = u.id 
-                WHERE p.id = ${parseInt(id)}
+                WHERE p.id = ?
             `;
             
-            const [rows] = await this.db.execute(query);
-            const post = rows[0] || null;
-            
-            if (post) {
-                post.actual_likes_count = post.likes_count || 0;
-                post.comments_count = 0;
-            }
-            
-            return post;
+            const [rows] = await this.db.execute(query, [id]);
+            return rows[0] || null;
         } catch (error) {
             console.error('Database error in getPostById:', error);
             throw new Error(`Failed to get post: ${error.message}`);
@@ -138,6 +120,7 @@ class PostService extends BaseService {
 
     async updatePost(id, userId, updateData) {
         try {
+            // Check if post exists and belongs to user
             const post = await this.findById(id);
             if (!post) {
                 throw new Error('Post not found');
@@ -187,26 +170,30 @@ class PostService extends BaseService {
 
     async toggleLike(postId, userId) {
         try {
+            // Check if post exists
             const post = await this.findById(postId);
             if (!post) {
                 throw new Error('Post not found');
             }
 
+            // Check if already liked
             const [existingLike] = await this.db.execute(
                 'SELECT id FROM likes WHERE post_id = ? AND user_id = ?',
-                [parseInt(postId), parseInt(userId)]
+                [postId, userId]
             );
 
             if (existingLike.length > 0) {
+                // Remove like
                 await this.db.execute(
                     'DELETE FROM likes WHERE post_id = ? AND user_id = ?',
-                    [parseInt(postId), parseInt(userId)]
+                    [postId, userId]
                 );
                 return { liked: false };
             } else {
+                // Add like
                 await this.db.execute(
                     'INSERT INTO likes (post_id, user_id) VALUES (?, ?)',
-                    [parseInt(postId), parseInt(userId)]
+                    [postId, userId]
                 );
                 return { liked: true };
             }

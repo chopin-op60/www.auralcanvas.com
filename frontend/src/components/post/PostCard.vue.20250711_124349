@@ -32,7 +32,7 @@
     
     <div class="post-actions">
       <el-button text @click="handleLike">
-        <el-icon><StarFilled /></el-icon>
+        <el-icon><Heart /></el-icon>
         {{ post.likes_count || 0 }}
       </el-button>
       <el-button text @click="handleComment">
@@ -48,7 +48,7 @@
 </template>
 
 <script setup>
-import { User, StarFilled, ChatDotSquare, Share } from '@element-plus/icons-vue'
+import { User, Heart, ChatDotSquare, Share } from '@element-plus/icons-vue'
 import { fromNow, getFileUrl } from '@/utils'
 
 defineProps({

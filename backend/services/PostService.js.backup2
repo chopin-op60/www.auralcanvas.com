@@ -52,7 +52,6 @@ class PostService extends BaseService {
                 whereParams = [parseInt(userId)];
             }
 
-            // 使用不带参数占位符的查询
             const query = `
                 SELECT 
                     p.id,
@@ -71,14 +70,15 @@ class PostService extends BaseService {
                 JOIN users u ON p.user_id = u.id 
                 ${whereClause}
                 ORDER BY p.created_at DESC 
-                LIMIT ${safeLimit} OFFSET ${safeOffset}
+                LIMIT ? OFFSET ?
             `;
             
+            const queryParams = [...whereParams, safeLimit, safeOffset];
             console.log('Executing query:', query.replace(/\s+/g, ' ').trim());
+            console.log('Query params:', queryParams);
             
-            const [rows] = await this.db.execute(query, whereParams);
+            const [rows] = await this.db.execute(query, queryParams);
             
-            // 添加计数字段
             const postsWithCounts = rows.map(post => ({
                 ...post,
                 actual_likes_count: post.likes_count || 0,
@@ -118,10 +118,10 @@ class PostService extends BaseService {
                     u.avatar as user_avatar
                 FROM posts p 
                 JOIN users u ON p.user_id = u.id 
-                WHERE p.id = ${parseInt(id)}
+                WHERE p.id = ?
             `;
             
-            const [rows] = await this.db.execute(query);
+            const [rows] = await this.db.execute(query, [parseInt(id)]);
             const post = rows[0] || null;
             
             if (post) {

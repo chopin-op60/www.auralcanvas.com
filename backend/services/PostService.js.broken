@@ -41,6 +41,7 @@ class PostService extends BaseService {
         try {
             console.log('Fetching posts with params:', { offset, limit, userId });
             
+            // 确保参数是整数
             const safeOffset = parseInt(offset) || 0;
             const safeLimit = parseInt(limit) || 10;
             
@@ -52,7 +53,7 @@ class PostService extends BaseService {
                 whereParams = [parseInt(userId)];
             }
 
-            // 使用不带参数占位符的查询
+            // 移除子查询，使用简单的JOIN查询
             const query = `
                 SELECT 
                     p.id,
@@ -71,14 +72,16 @@ class PostService extends BaseService {
                 JOIN users u ON p.user_id = u.id 
                 ${whereClause}
                 ORDER BY p.created_at DESC 
-                LIMIT ${safeLimit} OFFSET ${safeOffset}
+                LIMIT ? OFFSET ?
             `;
             
+            const queryParams = [...whereParams, safeLimit, safeOffset];
             console.log('Executing query:', query.replace(/\s+/g, ' ').trim());
+            console.log('Query params:', queryParams);
             
-            const [rows] = await this.db.execute(query, whereParams);
+            const [rows] = await this.db.execute(query, queryParams);
             
-            // 添加计数字段
+            // 为每条记录添加默认计数
             const postsWithCounts = rows.map(post => ({
                 ...post,
                 actual_likes_count: post.likes_count || 0,
@@ -96,6 +99,7 @@ class PostService extends BaseService {
             };
         } catch (error) {
             console.error('Database error in getPostsWithUserInfo:', error);
+            console.error('Error stack:', error.stack);
             throw error;
         }
     }
@@ -118,10 +122,10 @@ class PostService extends BaseService {
                     u.avatar as user_avatar
                 FROM posts p 
                 JOIN users u ON p.user_id = u.id 
-                WHERE p.id = ${parseInt(id)}
+                WHERE p.id = ?
             `;
             
-            const [rows] = await this.db.execute(query);
+            const [rows] = await this.db.execute(query, [parseInt(id)]);
             const post = rows[0] || null;
             
             if (post) {

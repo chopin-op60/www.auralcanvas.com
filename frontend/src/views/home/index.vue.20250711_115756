@@ -10,7 +10,7 @@
         <el-tab-pane label="Latest" name="latest">
           <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
-        <el-tab-pane label="Trending" name="trending">
+        <el-tab-pane label="Trending" name="hot">
           <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
         <el-tab-pane label="Following" name="following" v-if="userStore.isLoggedIn">
@@ -23,10 +23,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import PostList from '@/components/post/PostList.vue'
-import { getPostList } from '@/api/posts'
 
 const userStore = useUserStore()
 const activeTab = ref('latest')
@@ -34,58 +32,30 @@ const posts = ref([])
 const loading = ref(false)
 
 // Switch tabs
-const handleTabChange = async (tab) => {
-  console.log('Switching to tab:', tab)
-  activeTab.value = tab
-  await loadPosts(tab)
+const handleTabChange = (tab) => {
+  console.log('Switched to:', tab)
+  // TODO: Load different content based on tab
 }
 
 // Load posts list
-const loadPosts = async (tab = 'latest') => {
-  console.log('Loading posts for tab:', tab)
+const loadPosts = async () => {
   loading.value = true
-  
   try {
-    const params = {
-      page: 1,
-      limit: 20
-    }
+    // TODO: Call API to get posts
+    // const response = await getPostList()
+    // posts.value = response.data.posts
     
-    // 根据tab类型添加不同参数
-    switch (tab) {
-      case 'trending':
-        // TODO: 实现热门排序逻辑
-        break
-      case 'following':
-        // TODO: 实现关注用户帖子筛选
-        break
-      case 'latest':
-      default:
-        // 默认按时间倒序
-        break
-    }
-    
-    const response = await getPostList(params)
-    console.log('API response:', response)
-    
-    if (response.success && response.data) {
-      posts.value = response.data.posts || []
-      console.log('Loaded posts:', posts.value.length)
-    } else {
-      console.warn('Invalid response format:', response)
-      posts.value = []
-    }
+    // Temporary data
+    posts.value = []
   } catch (error) {
     console.error('Failed to load posts:', error)
-    ElMessage.error('Failed to load posts, please try again')
-    posts.value = []
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  loadPosts('latest')
+  loadPosts()
 })
 </script>
 
@@ -93,7 +63,6 @@ onMounted(() => {
 .home-page {
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
 }
 
 .welcome-banner {
@@ -121,21 +90,11 @@ onMounted(() => {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  min-height: 400px;
-}
-
-:deep(.el-tabs__content) {
-  padding-top: 20px;
 }
 
 @media (max-width: 768px) {
-  .home-page {
-    padding: 10px;
-  }
-  
   .welcome-banner {
     padding: 30px 15px;
-    margin-bottom: 20px;
     
     h1 {
       font-size: 2rem;
@@ -144,10 +103,6 @@ onMounted(() => {
     p {
       font-size: 1rem;
     }
-  }
-  
-  .content-tabs {
-    padding: 15px;
   }
 }
 </style>

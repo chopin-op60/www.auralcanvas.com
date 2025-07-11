@@ -1,0 +1,94 @@
+const BaseService = require('./BaseService');
+
+class PostService extends BaseService {
+    constructor() {
+        super('posts');
+    }
+
+    async createPost(postData) {
+        try {
+            const result = await this.create(postData);
+            console.log('Post created successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Database error in createPost:', error);
+            throw new Error(`Failed to create post: ${error.message}`);
+        }
+    }
+
+    async getPostsWithUserInfo(offset = 0, limit = 10, userId = null) {
+        try {
+            console.log('Starting getPostsWithUserInfo with params:', { offset, limit, userId });
+            
+            // 使用最简单的查询
+            const query = `
+                SELECT 
+                    p.id,
+                    p.title,
+                    p.description,
+                    p.content_type,
+                    p.file_path,
+                    p.content_text,
+                    p.created_at,
+                    u.username
+                FROM posts p 
+                JOIN users u ON p.user_id = u.id 
+                ORDER BY p.created_at DESC 
+                LIMIT 3
+            `;
+            
+            console.log('Executing simple query:', query.replace(/\s+/g, ' ').trim());
+            
+            const [rows] = await this.db.execute(query);
+            
+            console.log('Query executed successfully, rows:', rows.length);
+            
+            return {
+                data: rows || [],
+                total: rows.length
+            };
+        } catch (error) {
+            console.error('Database error in getPostsWithUserInfo:', error);
+            console.error('Error stack:', error.stack);
+            throw error;
+        }
+    }
+
+    async getPostById(id) {
+        try {
+            return await this.findById(id);
+        } catch (error) {
+            console.error('Database error in getPostById:', error);
+            throw error;
+        }
+    }
+
+    async updatePost(id, userId, updateData) {
+        try {
+            return await this.update(id, updateData);
+        } catch (error) {
+            console.error('Database error in updatePost:', error);
+            throw error;
+        }
+    }
+
+    async deletePost(id, userId) {
+        try {
+            return await this.delete(id);
+        } catch (error) {
+            console.error('Database error in deletePost:', error);
+            throw error;
+        }
+    }
+
+    async toggleLike(postId, userId) {
+        try {
+            return { liked: false };
+        } catch (error) {
+            console.error('Database error in toggleLike:', error);
+            throw error;
+        }
+    }
+}
+
+module.exports = PostService;

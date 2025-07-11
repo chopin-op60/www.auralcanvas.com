@@ -27,6 +27,26 @@ export function fromNow(date) {
 }
 
 /**
+ * 获取文件完整URL
+ * @param {string} filePath 
+ * @returns {string}
+ */
+export function getFileUrl(filePath) {
+  if (!filePath) return ''
+  
+  // 如果已经是完整URL，直接返回
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath
+  }
+  
+  // 构建完整的文件URL
+  const baseUrl = import.meta.env.VITE_UPLOAD_URL || 'https://www.auralcanvas.fun'
+  const cleanPath = filePath.startsWith('/') ? filePath : `/${filePath}`
+  
+  return `${baseUrl}${cleanPath}`
+}
+
+/**
  * 文件大小格式化
  * @param {number} bytes 
  * @returns {string}
@@ -143,17 +163,6 @@ export function validatePassword(password) {
 }
 
 /**
- * 获取文件预览URL
- * @param {string} filePath 
- * @returns {string}
- */
-export function getFileUrl(filePath) {
-  if (!filePath) return ''
-  if (filePath.startsWith('http')) return filePath
-  return `${import.meta.env.VITE_UPLOAD_URL}${filePath}`
-}
-
-/**
  * 复制到剪贴板
  * @param {string} text 
  * @returns {Promise<boolean>}
@@ -172,4 +181,34 @@ export async function copyToClipboard(text) {
     document.body.removeChild(textArea)
     return success
   }
+}
+
+/**
+ * 截断文本
+ * @param {string} text 
+ * @param {number} maxLength 
+ * @returns {string}
+ */
+export function truncateText(text, maxLength = 100) {
+  if (!text) return ''
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength) + '...'
+}
+
+/**
+ * URL参数序列化
+ * @param {object} params 
+ * @returns {string}
+ */
+export function serializeParams(params) {
+  if (!params || typeof params !== 'object') return ''
+  
+  const searchParams = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.append(key, String(value))
+    }
+  }
+  
+  return searchParams.toString()
 }
