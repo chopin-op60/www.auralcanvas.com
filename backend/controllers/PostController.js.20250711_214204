@@ -11,9 +11,6 @@ class PostController extends BaseController {
 
     // Create post
     createPost = this.handleAsync(async (req, res) => {
-        console.log('Creating post with data:', req.body);
-        console.log('File info:', req.file ? { filename: req.file.filename, size: req.file.size } : 'No file');
-
         const { title, description, content_type, content_text } = req.body;
 
         if (!title || !content_type) {
@@ -21,17 +18,14 @@ class PostController extends BaseController {
         }
 
         try {
-            // 确保所有字段都有正确的值，将undefined转换为null
             const postData = {
                 user_id: req.user.id,
-                title: title || null,
-                description: description || null,
-                content_type: content_type,
+                title,
+                description,
+                content_type,
                 content_text: content_text || null,
                 file_path: req.file ? `/uploads/${content_type}s/${req.file.filename}` : null
             };
-
-            console.log('Post data to save:', postData);
 
             // Validate content completeness
             if (content_type === 'text' && !content_text) {
@@ -43,10 +37,8 @@ class PostController extends BaseController {
             }
 
             const post = await this.postService.createPost(postData);
-            console.log('Post created successfully:', post);
             this.sendSuccess(res, post, 'Post created successfully', 201);
         } catch (error) {
-            console.error('Error creating post:', error);
             this.sendError(res, error.message, 400);
         }
     });
@@ -98,9 +90,9 @@ class PostController extends BaseController {
 
         try {
             const updatedPost = await this.postService.updatePost(id, req.user.id, {
-                title: title || null,
-                description: description || null,
-                content_text: content_text || null
+                title,
+                description,
+                content_text
             });
 
             this.sendSuccess(res, updatedPost, 'Post updated successfully');

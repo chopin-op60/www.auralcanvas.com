@@ -27,7 +27,7 @@ export function fromNow(date) {
 }
 
 /**
- * 获取文件完整URL - 修复双重uploads路径问题
+ * 获取文件完整URL
  * @param {string} filePath 
  * @returns {string}
  */
@@ -39,15 +39,11 @@ export function getFileUrl(filePath) {
     return filePath
   }
   
-  // 修复双重uploads路径问题
-  if (filePath.startsWith('/uploads/')) {
-    // 路径已经包含/uploads，直接拼接域名
-    return `https://www.auralcanvas.fun${filePath}`
-  }
-  
-  // 路径不包含/uploads，则添加
+  // 构建完整的文件URL
+  const baseUrl = import.meta.env.VITE_UPLOAD_URL || 'https://www.auralcanvas.fun'
   const cleanPath = filePath.startsWith('/') ? filePath : `/${filePath}`
-  return `https://www.auralcanvas.fun/uploads${cleanPath}`
+  
+  return `${baseUrl}${cleanPath}`
 }
 
 /**
