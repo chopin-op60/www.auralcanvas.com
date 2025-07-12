@@ -18,13 +18,7 @@
       
       <!-- 根据内容类型显示不同内容 -->
       <div v-if="post.content_type === 'image'" class="post-image">
-        <el-image 
-          :src="getFileUrl(post.file_path)" 
-          fit="contain"
-          style="width: 100%; max-height: 500px;"
-          :preview-src-list="[getFileUrl(post.file_path)]"
-          preview-teleported
-        />
+        <el-image :src="getFileUrl(post.file_path)" fit="cover" />
       </div>
       
       <div v-else-if="post.content_type === 'music'" class="post-audio">
@@ -47,7 +41,7 @@
       </el-button>
       <el-button text @click="handleShare">
         <el-icon><Share /></el-icon>
-        Share
+        分享
       </el-button>
     </div>
   </div>
@@ -66,17 +60,17 @@ defineProps({
 
 // 点赞
 const handleLike = () => {
-  console.log('Like clicked')
+  console.log('点赞')
 }
 
 // 评论
 const handleComment = () => {
-  console.log('Comment clicked')
+  console.log('评论')
 }
 
 // 分享
 const handleShare = () => {
-  console.log('Share clicked')
+  console.log('分享')
 }
 </script>
 
@@ -131,41 +125,16 @@ const handleShare = () => {
   
   .post-image {
     margin-bottom: 15px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: #f8f9fa;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 200px;
     
     :deep(.el-image) {
+      width: 100%;
+      max-height: 400px;
       border-radius: 8px;
-      cursor: pointer;
-    }
-    
-    :deep(.el-image__inner) {
-      max-width: 100%;
-      max-height: 500px;
-      object-fit: contain;
-      border-radius: 8px;
-    }
-    
-    :deep(.el-image__error) {
-      background: #f8f9fa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #909399;
-      font-size: 14px;
     }
   }
   
   .post-audio {
     margin-bottom: 15px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
     
     audio {
       width: 100%;
@@ -182,8 +151,6 @@ const handleShare = () => {
       color: #303133;
       line-height: 1.6;
       margin: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
     }
   }
 }
@@ -196,44 +163,9 @@ const handleShare = () => {
   
   .el-button {
     color: #909399;
-    font-size: 14px;
     
     &:hover {
       color: #409EFF;
-    }
-    
-    .el-icon {
-      margin-right: 4px;
-    }
-  }
-}
-
-// 响应式设计
-@media (max-width: 768px) {
-  .post-card {
-    padding: 15px;
-    margin-bottom: 15px;
-  }
-  
-  .post-content {
-    .post-title {
-      font-size: 16px;
-    }
-    
-    .post-image {
-      min-height: 150px;
-      
-      :deep(.el-image__inner) {
-        max-height: 400px;
-      }
-    }
-  }
-  
-  .post-actions {
-    gap: 15px;
-    
-    .el-button {
-      font-size: 12px;
     }
   }
 }

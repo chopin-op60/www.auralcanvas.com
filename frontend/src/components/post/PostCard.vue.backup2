@@ -47,7 +47,7 @@
       </el-button>
       <el-button text @click="handleShare">
         <el-icon><Share /></el-icon>
-        Share
+        分享
       </el-button>
     </div>
   </div>
@@ -66,17 +66,17 @@ defineProps({
 
 // 点赞
 const handleLike = () => {
-  console.log('Like clicked')
+  console.log('点赞')
 }
 
 // 评论
 const handleComment = () => {
-  console.log('Comment clicked')
+  console.log('评论')
 }
 
 // 分享
 const handleShare = () => {
-  console.log('Share clicked')
+  console.log('分享')
 }
 </script>
 

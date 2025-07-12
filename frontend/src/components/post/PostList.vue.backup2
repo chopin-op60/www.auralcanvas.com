@@ -5,9 +5,9 @@
     </div>
     
     <div v-else-if="posts.length === 0" class="empty-container">
-      <el-empty description="No content yet">
+      <el-empty description="暂无内容">
         <el-button type="primary" @click="$router.push('/post/create')">
-          Create Your First Post
+          创建第一个帖子
         </el-button>
       </el-empty>
     </div>

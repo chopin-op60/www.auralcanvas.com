@@ -1,9 +1,9 @@
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-cn'
 
 dayjs.extend(relativeTime)
-// 移除中文语言设置，使用默认英文
-// dayjs.locale('zh-cn')
+dayjs.locale('zh-cn')
 
 /**
  * 格式化日期
@@ -17,7 +17,7 @@ export function formatDate(date, format = 'YYYY-MM-DD HH:mm:ss') {
 }
 
 /**
- * 相对时间 - 英文显示
+ * 相对时间
  * @param {string|Date} date 
  * @returns {string}
  */
@@ -130,12 +130,12 @@ export function validatePassword(password) {
   }
   
   if (!password) {
-    result.message = 'Password cannot be empty'
+    result.message = '密码不能为空'
     return result
   }
   
   if (password.length < 6) {
-    result.message = 'Password must be at least 6 characters'
+    result.message = '密码至少需要6位'
     return result
   }
   
@@ -153,14 +153,14 @@ export function validatePassword(password) {
   switch (strength) {
     case 0:
     case 1:
-      result.message = 'Password strength: Weak'
+      result.message = '密码强度：弱'
       break
     case 2:
     case 3:
-      result.message = 'Password strength: Medium'
+      result.message = '密码强度：中'
       break
     default:
-      result.message = 'Password strength: Strong'
+      result.message = '密码强度：强'
   }
   
   return result
