@@ -9,42 +9,49 @@ class PostController extends BaseController {
         this.commentService = new CommentService();
     }
 
-    // Create mixed-content post
+    // Create post
     createPost = this.handleAsync(async (req, res) => {
-        console.log('Creating mixed-content post');
-        console.log('Request body:', req.body);
-        console.log('Uploaded files:', req.files ? req.files.length : 0);
+        console.log('Creating post with data:', req.body);
+        console.log('File info:', req.file ? { filename: req.file.filename, size: req.file.size } : 'No file');
 
-        const { title, description, content_text } = req.body;
+        const { title, description, content_type, content_text } = req.body;
 
-        if (!title || !title.trim()) {
-            return this.sendError(res, 'Post title is required', 400);
+        if (!title || !content_type) {
+            return this.sendError(res, 'Title and content type are required', 400);
         }
 
         try {
-            // 准备帖子数据
+            // 确保所有字段都有正确的值，将undefined转换为null
             const postData = {
                 user_id: req.user.id,
-                title: title.trim(),
-                description: description ? description.trim() : null,
-                content_text: content_text ? content_text.trim() : null
+                title: title || null,
+                description: description || null,
+                content_type: content_type,
+                content_text: content_text || null,
+                file_path: req.file ? `/uploads/${content_type}s/${req.file.filename}` : null
             };
 
             console.log('Post data to save:', postData);
-            console.log('Files to process:', req.files ? req.files.map(f => ({ name: f.originalname, size: f.size, type: f.mimetype })) : []);
 
-            // 创建帖子（包括媒体文件处理）
-            const post = await this.postService.createPost(postData, req.files);
-            
-            console.log('Mixed-content post created successfully:', post.id);
+            // Validate content completeness
+            if (content_type === 'text' && !content_text) {
+                return this.sendError(res, 'Text posts must include content', 400);
+            }
+
+            if ((content_type === 'image' || content_type === 'music') && !req.file) {
+                return this.sendError(res, `${content_type === 'image' ? 'Image' : 'Music'} posts must include a file upload`, 400);
+            }
+
+            const post = await this.postService.createPost(postData);
+            console.log('Post created successfully:', post);
             this.sendSuccess(res, post, 'Post created successfully', 201);
         } catch (error) {
-            console.error('Error creating mixed-content post:', error);
+            console.error('Error creating post:', error);
             this.sendError(res, error.message, 400);
         }
     });
 
-    // Get post list (supports new data structure)  
+    // Get post list
     getPosts = this.handleAsync(async (req, res) => {
         const { page, limit, offset } = this.getPagination(req);
         const userId = req.query.user_id;
@@ -84,7 +91,7 @@ class PostController extends BaseController {
         }
     });
 
-    // Update post (text content only)
+    // Update post
     updatePost = this.handleAsync(async (req, res) => {
         const { id } = req.params;
         const { title, description, content_text } = req.body;
@@ -102,7 +109,7 @@ class PostController extends BaseController {
         }
     });
 
-    // Delete post (includes media cleanup)
+    // Delete post
     deletePost = this.handleAsync(async (req, res) => {
         const { id } = req.params;
 
@@ -114,7 +121,7 @@ class PostController extends BaseController {
         }
     });
 
-    // Like/unlike post (unchanged)
+    // Like/unlike post
     toggleLike = this.handleAsync(async (req, res) => {
         const { id } = req.params;
 
@@ -126,7 +133,7 @@ class PostController extends BaseController {
         }
     });
 
-    // Comment methods (unchanged)
+    // Get post comments
     getComments = this.handleAsync(async (req, res) => {
         const { id } = req.params;
         const { page, limit, offset } = this.getPagination(req);
@@ -150,6 +157,7 @@ class PostController extends BaseController {
         }
     });
 
+    // Add comment
     addComment = this.handleAsync(async (req, res) => {
         const { id } = req.params;
         const { content } = req.body;
@@ -171,6 +179,7 @@ class PostController extends BaseController {
         }
     });
 
+    // Delete comment
     deleteComment = this.handleAsync(async (req, res) => {
         const { commentId } = req.params;
 

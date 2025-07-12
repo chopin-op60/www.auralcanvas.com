@@ -8,25 +8,13 @@
     <div class="content-tabs">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="Latest" name="latest">
-          <PostList 
-            :posts="posts" 
-            :loading="loading" 
-            @post-deleted="handlePostDeleted"
-          />
+          <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
         <el-tab-pane label="Trending" name="trending">
-          <PostList 
-            :posts="posts" 
-            :loading="loading" 
-            @post-deleted="handlePostDeleted"
-          />
+          <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
         <el-tab-pane label="Following" name="following" v-if="userStore.isLoggedIn">
-          <PostList 
-            :posts="posts" 
-            :loading="loading" 
-            @post-deleted="handlePostDeleted"
-          />
+          <PostList :posts="posts" :loading="loading" />
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -93,19 +81,6 @@ const loadPosts = async (tab = 'latest') => {
     posts.value = []
   } finally {
     loading.value = false
-  }
-}
-
-// 处理帖子删除后的刷新
-const handlePostDeleted = (deletedPostId) => {
-  console.log('Post deleted:', deletedPostId)
-  
-  // 从当前列表中移除已删除的帖子
-  posts.value = posts.value.filter(post => post.id !== deletedPostId)
-  
-  // 如果列表变空，重新加载
-  if (posts.value.length === 0) {
-    loadPosts(activeTab.value)
   }
 }
 

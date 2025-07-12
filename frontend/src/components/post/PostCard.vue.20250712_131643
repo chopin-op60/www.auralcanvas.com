@@ -41,7 +41,7 @@
       <!-- Mixed Media Content -->
       <div v-if="post.media && post.media.length > 0" class="post-media">
         
-        <!-- Images Section - Smart scaling -->
+        <!-- Images Section - Larger display -->
         <div v-if="imageFiles.length > 0" class="images-section">
           <div class="images-grid" :class="getImageGridClass()">
             <div 
@@ -51,7 +51,7 @@
             >
               <el-image 
                 :src="getFileUrl(media.file_path)" 
-                fit="contain"
+                fit="cover"
                 :preview-src-list="getImageUrls()"
                 :initial-index="index"
                 preview-teleported
@@ -308,7 +308,7 @@ const handleShare = () => {
   .post-media {
     margin-bottom: 15px;
     
-    // Images Section - Smart aspect ratio handling
+    // Images Section - Larger and more prominent
     .images-section {
       margin-bottom: 16px;
       
@@ -319,13 +319,9 @@ const handleShare = () => {
         overflow: hidden;
         
         &.single-image {
-          .image-item {
-            .media-image {
-              width: 100%;
-              max-height: 500px;
-              min-height: 200px;
-              height: auto;
-            }
+          .image-item .media-image {
+            height: 400px;
+            max-height: 500px;
           }
         }
         
@@ -334,7 +330,6 @@ const handleShare = () => {
           
           .image-item .media-image {
             height: 250px;
-            width: 100%;
           }
         }
         
@@ -346,13 +341,11 @@ const handleShare = () => {
             
             .media-image {
               height: 300px;
-              width: 100%;
             }
           }
           
           .image-item:not(:first-child) .media-image {
             height: 146px;
-            width: 100%;
           }
         }
         
@@ -361,7 +354,6 @@ const handleShare = () => {
           
           .image-item .media-image {
             height: 180px;
-            width: 100%;
           }
         }
         
@@ -370,7 +362,6 @@ const handleShare = () => {
           
           .image-item .media-image {
             height: 150px;
-            width: 100%;
           }
         }
         
@@ -378,25 +369,18 @@ const handleShare = () => {
           border-radius: 8px;
           overflow: hidden;
           background: #f8f9fa;
-          display: flex;
-          align-items: center;
-          justify-content: center;
           
           .media-image {
+            width: 100%;
             cursor: pointer;
             transition: transform 0.2s;
-            display: block;
             
             &:hover {
               transform: scale(1.02);
             }
             
             :deep(.el-image__inner) {
-              object-fit: contain;
-              width: 100%;
-              height: 100%;
-              max-width: 100%;
-              max-height: 100%;
+              object-fit: cover;
             }
             
             :deep(.el-image__error) {
@@ -406,8 +390,6 @@ const handleShare = () => {
               justify-content: center;
               color: #909399;
               font-size: 14px;
-              width: 100%;
-              height: 100%;
             }
           }
         }
@@ -549,21 +531,16 @@ const handleShare = () => {
         grid-template-columns: 1fr !important;
         
         .image-item .media-image {
-          height: auto !important;
-          min-height: 200px;
-          max-height: 350px;
+          height: 200px !important;
         }
       }
       
       &.single-image .image-item .media-image {
-        max-height: 400px !important;
-        height: auto !important;
+        height: 250px !important;
       }
       
       &.two-images .image-item .media-image {
-        height: auto !important;
-        min-height: 150px;
-        max-height: 250px;
+        height: 180px !important;
       }
     }
     

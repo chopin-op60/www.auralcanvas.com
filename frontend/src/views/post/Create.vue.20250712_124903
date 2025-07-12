@@ -56,9 +56,9 @@
               :limit="10"
               accept=".jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.m4a,.ogg,.flac"
               :before-upload="beforeUpload"
-              :on-change="handleFileAdd"
+              :on-change="handleFileChange"
               :on-remove="handleFileRemove"
-              :file-list="[]"
+              :file-list="fileList"
             >
               <div class="upload-content">
                 <el-icon class="upload-icon">
@@ -177,6 +177,7 @@ const postFormRef = ref()
 const uploadRef = ref()
 const submitting = ref(false)
 const uploadedFiles = ref([])
+const fileList = ref([])
 
 // Form data
 const postForm = reactive({
@@ -234,25 +235,15 @@ const beforeUpload = (file) => {
   return false; // Prevent auto upload
 }
 
-// Fixed file handling
-const handleFileAdd = (file, fileList) => {
-  console.log('handleFileAdd called:', file);
+const handleFileChange = (file, fileList) => {
+  console.log('handleFileChange called:', file);
   
   if (!file.raw) return;
   
   const rawFile = file.raw;
   
-  // Validate file
-  const isValidType = isImageFile(rawFile) || isAudioFile(rawFile);
-  const isValidSize = rawFile.size < 100 * 1024 * 1024;
-
-  if (!isValidType) {
-    ElMessage.error('Only image and audio files are supported');
-    return;
-  }
-  
-  if (!isValidSize) {
-    ElMessage.error('File size cannot exceed 100MB');
+  // Check file validity
+  if (!beforeUpload(rawFile)) {
     return;
   }
   
@@ -260,27 +251,22 @@ const handleFileAdd = (file, fileList) => {
   const previewUrl = URL.createObjectURL(rawFile);
   
   const fileData = {
-    uid: file.uid, // Element Plus file uid
     name: rawFile.name,
     size: rawFile.size,
     type: rawFile.type,
     preview: previewUrl,
-    raw: rawFile // Store the actual file
+    raw: rawFile
   };
   
   uploadedFiles.value.push(fileData);
-  console.log('File added to uploadedFiles:', uploadedFiles.value.length);
   ElMessage.success(`File "${rawFile.name}" added successfully`);
 }
 
-const handleFileRemove = (file, fileList) => {
+const handleFileRemove = (file) => {
   console.log('handleFileRemove called:', file);
   
-  // Find by uid if available, otherwise by name
-  const index = uploadedFiles.value.findIndex(f => 
-    (file.uid && f.uid === file.uid) || f.name === file.name
-  );
-  
+  // Find and remove from uploadedFiles
+  const index = uploadedFiles.value.findIndex(f => f.name === file.name);
   if (index > -1) {
     removeFile(index);
   }
@@ -292,13 +278,14 @@ const removeFile = (index) => {
     URL.revokeObjectURL(file.preview);
   }
   uploadedFiles.value.splice(index, 1);
-  console.log('File removed, remaining:', uploadedFiles.value.length);
+  
+  // Update fileList to sync with el-upload
+  fileList.value = fileList.value.filter((_, i) => i !== index);
 }
 
 // Submit post
 const submitPost = async () => {
   console.log('submitPost called, form valid:', isFormValid.value);
-  console.log('Files to upload:', uploadedFiles.value.length);
   
   if (!postFormRef.value) return;
   
@@ -323,21 +310,17 @@ const submitPost = async () => {
       formData.append('content_text', postForm.content_text.trim());
     }
     
-    // Add all files to FormData
+    // Add all files
     uploadedFiles.value.forEach((file, index) => {
-      console.log(`Adding file ${index}:`, file.name, file.size);
       formData.append('files', file.raw, file.name);
     });
 
-    // Debug FormData contents
-    console.log('FormData contents:');
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
-      } else {
-        console.log(`${key}: ${value}`);
-      }
-    }
+    console.log('Sending mixed-content post with:', {
+      title: formData.get('title'),
+      description: formData.get('description'),
+      content_text: formData.get('content_text'),
+      filesCount: uploadedFiles.value.length
+    });
 
     await createPost(formData);
     
@@ -374,6 +357,7 @@ const resetForm = () => {
     }
   });
   uploadedFiles.value = [];
+  fileList.value = [];
   
   if (uploadRef.value) {
     uploadRef.value.clearFiles();

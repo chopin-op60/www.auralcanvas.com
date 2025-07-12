@@ -14,10 +14,7 @@
     
     <div v-else class="posts-container">
       <div v-for="post in posts" :key="post.id" class="post-item">
-        <PostCard 
-          :post="post" 
-          @post-deleted="handlePostDeleted"
-        />
+        <PostCard :post="post" />
       </div>
     </div>
   </div>
@@ -36,13 +33,6 @@ defineProps({
     default: false
   }
 })
-
-const emit = defineEmits(['post-deleted'])
-
-// 传递删除事件到父组件
-const handlePostDeleted = (postId) => {
-  emit('post-deleted', postId)
-}
 </script>
 
 <style lang="scss" scoped>

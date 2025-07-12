@@ -13,12 +13,10 @@ const ensureDirectoryExists = (dir) => {
 // 配置存储
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        console.log('=== File Upload Destination ===');
         console.log('Processing file upload:', { 
             fieldname: file.fieldname, 
             mimetype: file.mimetype, 
-            originalname: file.originalname,
-            size: file.size || 'unknown'
+            originalname: file.originalname
         });
         
         let uploadPath = '';
@@ -49,12 +47,10 @@ const storage = multer.diskStorage({
 
 // 文件过滤器
 const fileFilter = (req, file, cb) => {
-    console.log('=== File Filter Check ===');
-    console.log('File filter input:', {
+    console.log('File filter check:', {
         originalname: file.originalname,
         mimetype: file.mimetype,
-        fieldname: file.fieldname,
-        size: file.size || 'unknown'
+        fieldname: file.fieldname
     });
 
     const allowedImageTypes = [
@@ -68,10 +64,10 @@ const fileFilter = (req, file, cb) => {
     const allowedTypes = [...allowedImageTypes, ...allowedAudioTypes];
     
     if (allowedTypes.includes(file.mimetype)) {
-        console.log('✅ File approved:', file.mimetype);
+        console.log('File approved:', file.mimetype);
         cb(null, true);
     } else {
-        console.log('❌ File rejected - unsupported type:', file.mimetype);
+        console.log('File rejected - unsupported type:', file.mimetype);
         cb(new Error(`File type ${file.mimetype} is not supported`), false);
     }
 };
@@ -85,39 +81,4 @@ const upload = multer({
     fileFilter: fileFilter
 });
 
-// 添加调试中间件
-const debugUpload = (req, res, next) => {
-    console.log('=== Pre-Upload Debug ===');
-    console.log('Content-Type:', req.get('Content-Type'));
-    console.log('Content-Length:', req.get('Content-Length'));
-    console.log('Request method:', req.method);
-    console.log('Request URL:', req.url);
-    
-    const originalArrayHandler = upload.array('files', 10);
-    
-    return originalArrayHandler(req, res, (err) => {
-        console.log('=== Post-Upload Debug ===');
-        console.log('Upload error:', err ? err.message : 'None');
-        console.log('Files received:', req.files ? req.files.length : 0);
-        
-        if (req.files && req.files.length > 0) {
-            req.files.forEach((file, index) => {
-                console.log(`File ${index}:`, {
-                    fieldname: file.fieldname,
-                    originalname: file.originalname,
-                    mimetype: file.mimetype,
-                    size: file.size,
-                    destination: file.destination,
-                    filename: file.filename,
-                    path: file.path
-                });
-            });
-        } else {
-            console.log('❌ No files received in req.files');
-        }
-        
-        next(err);
-    });
-};
-
-module.exports = { upload, debugUpload };
+module.exports = upload;

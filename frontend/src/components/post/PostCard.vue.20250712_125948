@@ -40,42 +40,29 @@
       
       <!-- Mixed Media Content -->
       <div v-if="post.media && post.media.length > 0" class="post-media">
-        
-        <!-- Images Section - Smart scaling -->
-        <div v-if="imageFiles.length > 0" class="images-section">
-          <div class="images-grid" :class="getImageGridClass()">
-            <div 
-              v-for="(media, index) in imageFiles" 
-              :key="media.id" 
-              class="image-item"
-            >
+        <div class="media-grid" :class="getMediaGridClass()">
+          <template v-for="(media, index) in post.media" :key="media.id">
+            <!-- Image Display -->
+            <div v-if="media.media_type === 'image'" class="media-item image-item">
               <el-image 
                 :src="getFileUrl(media.file_path)" 
-                fit="contain"
+                fit="cover"
                 :preview-src-list="getImageUrls()"
-                :initial-index="index"
+                :initial-index="getImageIndex(index)"
                 preview-teleported
                 class="media-image"
               />
             </div>
-          </div>
-        </div>
-        
-        <!-- Audio Files Section - Compact display -->
-        <div v-if="audioFiles.length > 0" class="audio-section">
-          <div class="audio-list">
-            <div 
-              v-for="media in audioFiles" 
-              :key="media.id" 
-              class="audio-item"
-            >
-              <div class="audio-header">
+            
+            <!-- Audio Display -->
+            <div v-else-if="media.media_type === 'audio'" class="media-item audio-item">
+              <div class="audio-info">
                 <div class="audio-icon">
                   <el-icon><Microphone /></el-icon>
                 </div>
-                <div class="audio-info">
-                  <span class="audio-name">{{ media.file_name }}</span>
-                  <span class="audio-size">{{ formatFileSize(media.file_size) }}</span>
+                <div class="audio-details">
+                  <p class="audio-name">{{ media.file_name }}</p>
+                  <p class="audio-size">{{ formatFileSize(media.file_size) }}</p>
                 </div>
               </div>
               <audio 
@@ -87,7 +74,7 @@
                 Your browser does not support audio playback.
               </audio>
             </div>
-          </div>
+          </template>
         </div>
       </div>
       
@@ -95,11 +82,11 @@
       <div v-if="post.has_images || post.has_audio" class="content-indicators">
         <el-tag v-if="post.has_images" size="small" type="primary">
           <el-icon><Picture /></el-icon>
-          {{ imageFiles.length }} {{ imageFiles.length === 1 ? 'Image' : 'Images' }}
+          Images
         </el-tag>
         <el-tag v-if="post.has_audio" size="small" type="success">
           <el-icon><Microphone /></el-icon>
-          {{ audioFiles.length }} Audio {{ audioFiles.length === 1 ? 'File' : 'Files' }}
+          Audio
         </el-tag>
         <el-tag v-if="post.content_text" size="small" type="info">
           <el-icon><Document /></el-icon>
@@ -153,28 +140,28 @@ const canDelete = computed(() => {
          props.post.user_id === userStore.userId
 })
 
-// 分离图片和音频文件
-const imageFiles = computed(() => {
-  return props.post.media?.filter(m => m.media_type === 'image') || []
-})
-
-const audioFiles = computed(() => {
-  return props.post.media?.filter(m => m.media_type === 'audio') || []
-})
-
-// 图片网格样式
-const getImageGridClass = () => {
-  const count = imageFiles.value.length
-  if (count === 1) return 'single-image'
-  if (count === 2) return 'two-images'
-  if (count === 3) return 'three-images'
-  if (count === 4) return 'four-images'
-  return 'many-images'
+// Media grid styling  
+const getMediaGridClass = () => {
+  const mediaCount = props.post.media?.length || 0;
+  if (mediaCount === 1) return 'single-media';
+  if (mediaCount === 2) return 'two-media';
+  if (mediaCount <= 4) return 'grid-media';
+  return 'many-media';
 }
 
 // 获取所有图片URL用于预览
 const getImageUrls = () => {
-  return imageFiles.value.map(m => getFileUrl(m.file_path))
+  return props.post.media
+    ?.filter(m => m.media_type === 'image')
+    ?.map(m => getFileUrl(m.file_path)) || [];
+}
+
+// 获取图片在预览列表中的索引
+const getImageIndex = (mediaIndex) => {
+  const imagesBeforeThis = props.post.media
+    ?.slice(0, mediaIndex)
+    ?.filter(m => m.media_type === 'image')?.length || 0;
+  return imagesBeforeThis;
 }
 
 // Event handlers
@@ -308,179 +295,85 @@ const handleShare = () => {
   .post-media {
     margin-bottom: 15px;
     
-    // Images Section - Smart aspect ratio handling
-    .images-section {
-      margin-bottom: 16px;
+    .media-grid {
+      display: grid;
+      gap: 12px;
+      border-radius: 8px;
+      overflow: hidden;
       
-      .images-grid {
-        display: grid;
-        gap: 8px;
-        border-radius: 12px;
+      &.single-media {
+        grid-template-columns: 1fr;
+      }
+      
+      &.two-media {
+        grid-template-columns: 1fr 1fr;
+      }
+      
+      &.grid-media {
+        grid-template-columns: 1fr 1fr;
+      }
+      
+      &.many-media {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      
+      .media-item {
+        border-radius: 8px;
         overflow: hidden;
         
-        &.single-image {
-          .image-item {
-            .media-image {
-              width: 100%;
-              max-height: 500px;
-              min-height: 200px;
-              height: auto;
-            }
-          }
-        }
-        
-        &.two-images {
-          grid-template-columns: 1fr 1fr;
-          
-          .image-item .media-image {
-            height: 250px;
-            width: 100%;
-          }
-        }
-        
-        &.three-images {
-          grid-template-columns: 1fr 1fr;
-          
-          .image-item:first-child {
-            grid-row: span 2;
-            
-            .media-image {
-              height: 300px;
-              width: 100%;
-            }
-          }
-          
-          .image-item:not(:first-child) .media-image {
-            height: 146px;
-            width: 100%;
-          }
-        }
-        
-        &.four-images {
-          grid-template-columns: 1fr 1fr;
-          
-          .image-item .media-image {
-            height: 180px;
-            width: 100%;
-          }
-        }
-        
-        &.many-images {
-          grid-template-columns: repeat(3, 1fr);
-          
-          .image-item .media-image {
-            height: 150px;
-            width: 100%;
-          }
-        }
-        
-        .image-item {
-          border-radius: 8px;
-          overflow: hidden;
-          background: #f8f9fa;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          
+        &.image-item {
           .media-image {
+            width: 100%;
+            height: 200px;
             cursor: pointer;
-            transition: transform 0.2s;
-            display: block;
-            
-            &:hover {
-              transform: scale(1.02);
-            }
             
             :deep(.el-image__inner) {
-              object-fit: contain;
-              width: 100%;
-              height: 100%;
-              max-width: 100%;
-              max-height: 100%;
-            }
-            
-            :deep(.el-image__error) {
-              background: #f8f9fa;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #909399;
-              font-size: 14px;
-              width: 100%;
-              height: 100%;
+              object-fit: cover;
             }
           }
         }
-      }
-    }
-    
-    // Audio Section - Compact and elegant
-    .audio-section {
-      .audio-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
         
-        .audio-item {
+        &.audio-item {
           background: #f8f9fa;
-          border-radius: 8px;
-          padding: 12px;
-          border: 1px solid #e4e7ed;
-          transition: all 0.2s;
+          padding: 15px;
           
-          &:hover {
-            border-color: #409EFF;
-            background: #f0f9ff;
-          }
-          
-          .audio-header {
+          .audio-info {
             display: flex;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             
             .audio-icon {
-              margin-right: 10px;
+              margin-right: 12px;
               
               .el-icon {
-                font-size: 18px;
+                font-size: 24px;
                 color: #409EFF;
               }
             }
             
-            .audio-info {
+            .audio-details {
               flex: 1;
-              display: flex;
-              align-items: center;
-              gap: 8px;
               
               .audio-name {
                 font-size: 14px;
                 font-weight: 500;
                 color: #303133;
+                margin: 0 0 4px 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                flex: 1;
               }
               
               .audio-size {
                 font-size: 12px;
                 color: #909399;
-                background: #fff;
-                padding: 2px 6px;
-                border-radius: 4px;
-                flex-shrink: 0;
+                margin: 0;
               }
             }
           }
           
           .audio-player {
             width: 100%;
-            height: 32px;
-            
-            &::-webkit-media-controls-panel {
-              background-color: #fff;
-            }
           }
         }
       }
@@ -491,7 +384,6 @@ const handleShare = () => {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-top: 12px;
     
     .el-tag {
       .el-icon {
@@ -541,40 +433,14 @@ const handleShare = () => {
     padding: 15px;
   }
   
-  .post-content .post-media {
-    .images-section .images-grid {
-      &.three-images,
-      &.four-images,
-      &.many-images {
-        grid-template-columns: 1fr !important;
-        
-        .image-item .media-image {
-          height: auto !important;
-          min-height: 200px;
-          max-height: 350px;
-        }
-      }
-      
-      &.single-image .image-item .media-image {
-        max-height: 400px !important;
-        height: auto !important;
-      }
-      
-      &.two-images .image-item .media-image {
-        height: auto !important;
-        min-height: 150px;
-        max-height: 250px;
-      }
+  .media-grid {
+    &.grid-media,
+    &.many-media {
+      grid-template-columns: 1fr !important;
     }
     
-    .audio-section .audio-list .audio-item {
-      padding: 10px;
-      
-      .audio-header .audio-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-      }
+    .media-item.image-item .media-image {
+      height: 150px !important;
     }
   }
   

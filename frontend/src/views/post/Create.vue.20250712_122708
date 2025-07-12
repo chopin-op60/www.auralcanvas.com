@@ -1,0 +1,656 @@
+<template>
+  <div class="create-post-page">
+    <div class="create-container">
+      <div class="page-header">
+        <h1>Create New Post</h1>
+        <p>Share your creativity with the world</p>
+      </div>
+
+      <el-form
+        ref="postFormRef"
+        :model="postForm"
+        :rules="postRules"
+        label-width="120px"
+        class="post-form"
+      >
+        <el-form-item label="Post Title" prop="title">
+          <el-input
+            v-model="postForm.title"
+            placeholder="Enter your post title"
+            maxlength="200"
+            show-word-limit
+            size="large"
+          />
+        </el-form-item>
+
+        <el-form-item label="Content Type" prop="content_type">
+          <el-radio-group v-model="postForm.content_type" @change="handleContentTypeChange">
+            <el-radio-button label="text">
+              <el-icon><Document /></el-icon>
+              Text
+            </el-radio-button>
+            <el-radio-button label="image">
+              <el-icon><Picture /></el-icon>
+              Image
+            </el-radio-button>
+            <el-radio-button label="music">
+              <el-icon><Microphone /></el-icon>
+              Music
+            </el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+
+        <!-- Text Content -->
+        <el-form-item 
+          v-if="postForm.content_type === 'text'" 
+          label="Text Content" 
+          prop="content_text"
+        >
+          <el-input
+            v-model="postForm.content_text"
+            type="textarea"
+            :rows="8"
+            placeholder="Write your story, thoughts, or ideas..."
+            maxlength="5000"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <!-- File Upload -->
+        <el-form-item 
+          v-if="postForm.content_type === 'image' || postForm.content_type === 'music'" 
+          :label="postForm.content_type === 'image' ? 'Upload Image' : 'Upload Music'"
+          prop="file"
+        >
+          <el-upload
+            ref="uploadRef"
+            class="upload-demo"
+            drag
+            :auto-upload="false"
+            :limit="1"
+            :accept="acceptTypes"
+            :before-upload="beforeUpload"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            :file-list="fileList"
+          >
+            <div v-if="!uploadedFile" class="upload-content">
+              <el-icon class="el-icon--upload">
+                <component :is="postForm.content_type === 'image' ? Picture : Microphone" />
+              </el-icon>
+              <div class="el-upload__text">
+                Drop {{ postForm.content_type }} here or <em>click to upload</em>
+              </div>
+              <div class="el-upload__tip">
+                {{ uploadTip }}
+              </div>
+            </div>
+            
+            <template v-else>
+              <div class="uploaded-preview">
+                <!-- Image Preview -->
+                <div v-if="postForm.content_type === 'image'" class="image-preview">
+                  <el-image 
+                    :src="uploadedFile.preview" 
+                    fit="cover"
+                    style="width: 100%; max-height: 300px;"
+                  />
+                  <div class="file-info">
+                    <span>{{ uploadedFile.name }}</span>
+                    <span class="file-size">({{ formatFileSize(uploadedFile.size) }})</span>
+                  </div>
+                </div>
+                
+                <!-- Audio Preview -->
+                <div v-else-if="postForm.content_type === 'music'" class="audio-preview">
+                  <div class="audio-info">
+                    <el-icon class="audio-icon"><Microphone /></el-icon>
+                    <div class="file-details">
+                      <div class="file-name">{{ uploadedFile.name }}</div>
+                      <div class="file-size">{{ formatFileSize(uploadedFile.size) }}</div>
+                    </div>
+                  </div>
+                  <audio 
+                    v-if="uploadedFile.preview"
+                    :src="uploadedFile.preview" 
+                    controls 
+                    class="audio-player"
+                    preload="metadata"
+                  >
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+
+        <el-form-item label="Description" prop="description">
+          <el-input
+            v-model="postForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="Add a description (optional)"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item class="form-actions">
+          <el-button 
+            type="primary" 
+            size="large"
+            :loading="submitting" 
+            @click="submitPost"
+            :disabled="!isFormValid"
+          >
+            <el-icon><Upload /></el-icon>
+            Publish Post
+          </el-button>
+          <el-button size="large" @click="resetForm">
+            <el-icon><Refresh /></el-icon>
+            Reset
+          </el-button>
+          <el-button size="large" @click="$router.back()">
+            <el-icon><ArrowLeft /></el-icon>
+            Cancel
+          </el-button>
+        </el-form-item>
+
+        <!-- Debug Info (development only) -->
+        <div v-if="showDebug" class="debug-info">
+          <h4>Debug Information:</h4>
+          <p><strong>Form Valid:</strong> {{ isFormValid }}</p>
+          <p><strong>Content Type:</strong> {{ postForm.content_type }}</p>
+          <p><strong>Title:</strong> {{ postForm.title }}</p>
+          <p><strong>Has File:</strong> {{ !!uploadedFile }}</p>
+          <p><strong>Has Text:</strong> {{ !!postForm.content_text }}</p>
+          <p><strong>File Info:</strong> {{ uploadedFile ? uploadedFile.name : 'No file' }}</p>
+        </div>
+      </el-form>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { 
+  Document, Picture, Microphone, Upload, Refresh, ArrowLeft 
+} from '@element-plus/icons-vue'
+import { createPost } from '@/api/posts'
+import { formatFileSize } from '@/utils'
+
+const router = useRouter()
+
+const postFormRef = ref()
+const uploadRef = ref()
+const submitting = ref(false)
+const uploadedFile = ref(null)
+const fileList = ref([])
+const showDebug = ref(false) // Set to true for debugging
+
+// Form data
+const postForm = reactive({
+  title: '',
+  description: '',
+  content_type: 'text',
+  content_text: '',
+  file: null
+})
+
+// Validation rules
+const postRules = {
+  title: [
+    { required: true, message: 'Please enter post title', trigger: 'blur' },
+    { min: 2, max: 200, message: 'Title must be 2-200 characters', trigger: 'blur' }
+  ],
+  content_type: [
+    { required: true, message: 'Please select content type', trigger: 'change' }
+  ],
+  content_text: [
+    { 
+      validator: (rule, value, callback) => {
+        if (postForm.content_type === 'text' && (!value || value.trim().length === 0)) {
+          callback(new Error('Please enter text content'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ]
+}
+
+// Computed properties
+const acceptTypes = computed(() => {
+  if (postForm.content_type === 'image') {
+    return '.jpg,.jpeg,.png,.gif,.webp'
+  } else if (postForm.content_type === 'music') {
+    return '.mp3,.wav,.m4a,.ogg'
+  }
+  return ''
+})
+
+const uploadTip = computed(() => {
+  if (postForm.content_type === 'image') {
+    return 'Support jpg/png/gif/webp, max size 100MB'
+  } else if (postForm.content_type === 'music') {
+    return 'Support mp3/wav/m4a/ogg, max size 100MB'
+  }
+  return ''
+})
+
+// Fixed: Check for valid form state correctly
+const isFormValid = computed(() => {
+  console.log('Computing form validity:', {
+    title: postForm.title?.trim(),
+    content_type: postForm.content_type,
+    content_text: postForm.content_text?.trim(),
+    uploadedFile: !!uploadedFile.value
+  })
+  
+  if (!postForm.title?.trim()) return false
+  
+  if (postForm.content_type === 'text') {
+    return !!postForm.content_text?.trim()
+  }
+  
+  if (postForm.content_type === 'image' || postForm.content_type === 'music') {
+    return !!uploadedFile.value
+  }
+  
+  return false
+})
+
+// Handle content type change
+const handleContentTypeChange = () => {
+  postForm.content_text = ''
+  postForm.file = null
+  uploadedFile.value = null
+  fileList.value = []
+  if (uploadRef.value) {
+    uploadRef.value.clearFiles()
+  }
+}
+
+// Fixed: File upload handlers
+const beforeUpload = (file) => {
+  console.log('beforeUpload called with:', file.name, file.type, file.size)
+  
+  const isValidType = checkFileType(file)
+  const isValidSize = file.size < 100 * 1024 * 1024 // 100MB
+
+  if (!isValidType) {
+    ElMessage.error('Invalid file type')
+    return false
+  }
+  
+  if (!isValidSize) {
+    ElMessage.error('File size cannot exceed 100MB')
+    return false
+  }
+
+  // Return false to prevent auto upload but allow file processing
+  return false
+}
+
+const checkFileType = (file) => {
+  if (postForm.content_type === 'image') {
+    return ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)
+  } else if (postForm.content_type === 'music') {
+    return ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg'].includes(file.type)
+  }
+  return false
+}
+
+const handleFileChange = (file, fileList) => {
+  console.log('handleFileChange called:', file, fileList)
+  
+  if (!file.raw) {
+    console.log('No raw file found')
+    return
+  }
+  
+  const rawFile = file.raw
+  
+  // Check file validity
+  if (!checkFileType(rawFile)) {
+    ElMessage.error('Invalid file type')
+    handleFileRemove()
+    return
+  }
+  
+  if (rawFile.size >= 100 * 1024 * 1024) {
+    ElMessage.error('File size cannot exceed 100MB')
+    handleFileRemove()
+    return
+  }
+  
+  // Set file to form
+  postForm.file = rawFile
+  
+  // Create preview URL
+  const previewUrl = URL.createObjectURL(rawFile)
+  
+  uploadedFile.value = {
+    name: rawFile.name,
+    size: rawFile.size,
+    type: rawFile.type,
+    preview: previewUrl
+  }
+  
+  ElMessage.success(`File "${rawFile.name}" uploaded successfully`)
+  
+  // Force reactivity update
+  nextTick(() => {
+    console.log('File uploaded, form valid:', isFormValid.value)
+  })
+}
+
+const handleFileRemove = () => {
+  console.log('handleFileRemove called')
+  
+  if (uploadedFile.value?.preview) {
+    URL.revokeObjectURL(uploadedFile.value.preview)
+  }
+  
+  uploadedFile.value = null
+  postForm.file = null
+  fileList.value = []
+  
+  if (uploadRef.value) {
+    uploadRef.value.clearFiles()
+  }
+  
+  nextTick(() => {
+    console.log('File removed, form valid:', isFormValid.value)
+  })
+}
+
+// Submit post
+const submitPost = async () => {
+  console.log('submitPost called, form valid:', isFormValid.value)
+  console.log('Form data:', {
+    title: postForm.title,
+    content_type: postForm.content_type,
+    content_text: postForm.content_text,
+    file: postForm.file?.name
+  })
+  
+  if (!postFormRef.value) return
+  
+  try {
+    // Validate form
+    await postFormRef.value.validate()
+    
+    if (!isFormValid.value) {
+      ElMessage.error('Please complete all required fields')
+      return
+    }
+    
+    submitting.value = true
+    
+    const formData = new FormData()
+    formData.append('title', postForm.title.trim())
+    formData.append('content_type', postForm.content_type)
+    
+    if (postForm.description?.trim()) {
+      formData.append('description', postForm.description.trim())
+    }
+    
+    if (postForm.content_type === 'text') {
+      formData.append('content_text', postForm.content_text.trim())
+    } else if (postForm.file) {
+      formData.append('file', postForm.file, postForm.file.name)
+    }
+
+    console.log('Sending FormData:', {
+      title: formData.get('title'),
+      content_type: formData.get('content_type'),
+      description: formData.get('description'),
+      content_text: formData.get('content_text'),
+      file: formData.get('file')?.name
+    })
+
+    const response = await createPost(formData)
+    
+    ElMessage.success('Post created successfully!')
+    
+    // Clean up preview URL
+    if (uploadedFile.value?.preview) {
+      URL.revokeObjectURL(uploadedFile.value.preview)
+    }
+    
+    // Redirect to home
+    router.push('/home')
+    
+  } catch (error) {
+    console.error('Failed to create post:', error)
+    const errorMessage = error.response?.data?.message || error.message || 'Failed to create post'
+    ElMessage.error(errorMessage)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Reset form
+const resetForm = () => {
+  if (postFormRef.value) {
+    postFormRef.value.resetFields()
+  }
+  handleFileRemove()
+  postForm.content_type = 'text'
+  postForm.title = ''
+  postForm.description = ''
+  postForm.content_text = ''
+}
+</script>
+
+<style lang="scss" scoped>
+.create-post-page {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.create-container {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 40px;
+  
+  h1 {
+    font-size: 32px;
+    color: #303133;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  
+  p {
+    color: #909399;
+    font-size: 16px;
+  }
+}
+
+.post-form {
+  .el-form-item {
+    margin-bottom: 28px;
+  }
+  
+  :deep(.el-radio-button) {
+    .el-radio-button__inner {
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-right: 12px;
+      
+      .el-icon {
+        margin-right: 6px;
+      }
+    }
+  }
+  
+  .upload-demo {
+    width: 100%;
+    
+    :deep(.el-upload-dragger) {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      border: 2px dashed #dcdfe6;
+      transition: all 0.3s;
+      
+      &:hover {
+        border-color: #409EFF;
+        background: #fafbfc;
+      }
+    }
+    
+    .upload-content {
+      padding: 60px 40px;
+      text-align: center;
+      
+      .el-icon--upload {
+        font-size: 60px;
+        color: #409EFF;
+        margin-bottom: 20px;
+      }
+      
+      .el-upload__text {
+        font-size: 16px;
+        color: #606266;
+        margin-bottom: 10px;
+        
+        em {
+          color: #409EFF;
+          font-style: normal;
+          font-weight: 500;
+        }
+      }
+      
+      .el-upload__tip {
+        font-size: 13px;
+        color: #909399;
+      }
+    }
+    
+    .uploaded-preview {
+      padding: 20px;
+      
+      .image-preview {
+        .el-image {
+          border-radius: 8px;
+          margin-bottom: 12px;
+        }
+        
+        .file-info {
+          text-align: center;
+          color: #606266;
+          
+          .file-size {
+            color: #909399;
+            font-size: 12px;
+          }
+        }
+      }
+      
+      .audio-preview {
+        .audio-info {
+          display: flex;
+          align-items: center;
+          margin-bottom: 16px;
+          
+          .audio-icon {
+            font-size: 32px;
+            color: #409EFF;
+            margin-right: 12px;
+          }
+          
+          .file-details {
+            .file-name {
+              font-weight: 500;
+              color: #303133;
+              margin-bottom: 4px;
+            }
+            
+            .file-size {
+              font-size: 12px;
+              color: #909399;
+            }
+          }
+        }
+        
+        .audio-player {
+          width: 100%;
+          border-radius: 6px;
+        }
+      }
+    }
+  }
+  
+  .form-actions {
+    .el-button {
+      margin-right: 12px;
+      
+      .el-icon {
+        margin-right: 6px;
+      }
+    }
+  }
+  
+  .debug-info {
+    margin-top: 30px;
+    padding: 15px;
+    background: #f5f7fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    
+    h4 {
+      margin-top: 0;
+      color: #409EFF;
+    }
+    
+    p {
+      margin: 5px 0;
+      font-size: 14px;
+      font-family: monospace;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .create-post-page {
+    padding: 15px;
+  }
+  
+  .create-container {
+    padding: 25px 20px;
+  }
+  
+  .page-header h1 {
+    font-size: 28px;
+  }
+  
+  .upload-content {
+    padding: 40px 20px !important;
+    
+    .el-icon--upload {
+      font-size: 48px !important;
+    }
+  }
+  
+  .form-actions {
+    .el-button {
+      display: block;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+  }
+}
+</style>
