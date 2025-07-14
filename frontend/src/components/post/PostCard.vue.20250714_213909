@@ -61,7 +61,7 @@
           </div>
         </div>
         
-        <!-- Audio Files Section - Clean and minimal -->
+        <!-- Audio Files Section - Compact display -->
         <div v-if="audioFiles.length > 0" class="audio-section">
           <div class="audio-list">
             <div 
@@ -69,6 +69,15 @@
               :key="media.id" 
               class="audio-item"
             >
+              <div class="audio-header">
+                <div class="audio-icon">
+                  <el-icon><Microphone /></el-icon>
+                </div>
+                <div class="audio-info">
+                  <span class="audio-name">{{ media.file_name }}</span>
+                  <span class="audio-size">{{ formatFileSize(media.file_size) }}</span>
+                </div>
+              </div>
               <audio 
                 :src="getFileUrl(media.file_path)" 
                 controls 
@@ -80,6 +89,22 @@
             </div>
           </div>
         </div>
+      </div>
+      
+      <!-- Content Type Indicators -->
+      <div v-if="post.has_images || post.has_audio" class="content-indicators">
+        <el-tag v-if="post.has_images" size="small" type="primary">
+          <el-icon><Picture /></el-icon>
+          {{ imageFiles.length }} {{ imageFiles.length === 1 ? 'Image' : 'Images' }}
+        </el-tag>
+        <el-tag v-if="post.has_audio" size="small" type="success">
+          <el-icon><Microphone /></el-icon>
+          {{ audioFiles.length }} Audio {{ audioFiles.length === 1 ? 'File' : 'Files' }}
+        </el-tag>
+        <el-tag v-if="post.content_text" size="small" type="info">
+          <el-icon><Document /></el-icon>
+          Text
+        </el-tag>
       </div>
     </div>
     
@@ -104,9 +129,10 @@
 import { computed } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { 
-  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete
+  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete,
+  Microphone, Picture, Document 
 } from '@element-plus/icons-vue'
-import { fromNow, getFileUrl } from '@/utils'
+import { fromNow, getFileUrl, formatFileSize } from '@/utils'
 import { useUserStore } from '@/stores/user'
 import { deletePost } from '@/api/posts'
 
@@ -388,25 +414,88 @@ const handleShare = () => {
       }
     }
     
-    // Audio Section - Clean and minimal
+    // Audio Section - Compact and elegant
     .audio-section {
       .audio-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 12px;
         
         .audio-item {
+          background: #f8f9fa;
+          border-radius: 8px;
+          padding: 12px;
+          border: 1px solid #e4e7ed;
+          transition: all 0.2s;
+          
+          &:hover {
+            border-color: #409EFF;
+            background: #f0f9ff;
+          }
+          
+          .audio-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            
+            .audio-icon {
+              margin-right: 10px;
+              
+              .el-icon {
+                font-size: 18px;
+                color: #409EFF;
+              }
+            }
+            
+            .audio-info {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              
+              .audio-name {
+                font-size: 14px;
+                font-weight: 500;
+                color: #303133;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 1;
+              }
+              
+              .audio-size {
+                font-size: 12px;
+                color: #909399;
+                background: #fff;
+                padding: 2px 6px;
+                border-radius: 4px;
+                flex-shrink: 0;
+              }
+            }
+          }
+          
           .audio-player {
             width: 100%;
-            height: 40px;
-            border-radius: 6px;
+            height: 32px;
             
             &::-webkit-media-controls-panel {
-              background-color: #f8f9fa;
-              border-radius: 6px;
+              background-color: #fff;
             }
           }
         }
+      }
+    }
+  }
+  
+  .content-indicators {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    
+    .el-tag {
+      .el-icon {
+        margin-right: 4px;
       }
     }
   }
@@ -477,6 +566,20 @@ const handleShare = () => {
         max-height: 250px;
       }
     }
+    
+    .audio-section .audio-list .audio-item {
+      padding: 10px;
+      
+      .audio-header .audio-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+    }
+  }
+  
+  .content-indicators .el-tag {
+    font-size: 11px;
   }
   
   .post-actions {

@@ -19,11 +19,7 @@ class UserService extends BaseService {
             username: userData.username,
             email: userData.email,
             password_hash: passwordHash,
-            avatar: userData.avatar || null,
-            bio: userData.bio || null,
-            location: userData.location || null,
-            website: userData.website || null,
-            cover_image: userData.cover_image || null
+            avatar: userData.avatar || null
         };
         
         return await this.create(userDataWithHash);
@@ -48,12 +44,12 @@ class UserService extends BaseService {
     async checkUserExists(username, email) {
         const existingUser = await this.findByUsername(username);
         if (existingUser) {
-            throw new Error('Username already exists');
+            throw new Error('用户名已存在');
         }
         
         const existingEmail = await this.findByEmail(email);
         if (existingEmail) {
-            throw new Error('Email already in use');
+            throw new Error('邮箱已被使用');
         }
     }
 
@@ -63,19 +59,14 @@ class UserService extends BaseService {
 
     async getUserProfile(id) {
         const [rows] = await this.db.execute(
-            `SELECT id, username, email, avatar, bio, location, website, 
-                    cover_image, posts_count, followers_count, following_count, created_at 
-             FROM users WHERE id = ?`,
+            'SELECT id, username, email, avatar, created_at FROM users WHERE id = ?',
             [id]
         );
         return rows[0] || null;
     }
 
     async updateProfile(id, profileData) {
-        const allowedFields = [
-            'username', 'email', 'avatar', 'bio', 
-            'location', 'website', 'cover_image'
-        ];
+        const allowedFields = ['username', 'email', 'avatar'];
         const updateData = {};
         
         // 只允许更新特定字段
@@ -86,44 +77,10 @@ class UserService extends BaseService {
         }
         
         if (Object.keys(updateData).length === 0) {
-            throw new Error('No valid update data provided');
-        }
-        
-        // 如果更新用户名或邮箱，需要检查重复
-        if (updateData.username || updateData.email) {
-            const currentUser = await this.findById(id);
-            if (!currentUser) {
-                throw new Error('User not found');
-            }
-            
-            if (updateData.username !== currentUser.username) {
-                const existingUser = await this.findByUsername(updateData.username);
-                if (existingUser && existingUser.id !== id) {
-                    throw new Error('Username already exists');
-                }
-            }
-            
-            if (updateData.email !== currentUser.email) {
-                const existingEmail = await this.findByEmail(updateData.email);
-                if (existingEmail && existingEmail.id !== id) {
-                    throw new Error('Email already in use');
-                }
-            }
+            throw new Error('没有有效的更新数据');
         }
         
         return await this.update(id, updateData);
-    }
-
-    async updatePostsCount(userId, increment = true) {
-        try {
-            const operation = increment ? '+' : '-';
-            await this.db.execute(
-                `UPDATE users SET posts_count = posts_count ${operation} 1 WHERE id = ?`,
-                [userId]
-            );
-        } catch (error) {
-            console.error('Failed to update posts count:', error);
-        }
     }
 }
 

@@ -44,11 +44,11 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click="router.push('/profile')">
                     <el-icon><User /></el-icon>
-                    My Profile
+                    Profile
                   </el-dropdown-item>
-                  <el-dropdown-item @click="router.push('/profile/edit')">
-                    <el-icon><Edit /></el-icon>
-                    Edit Profile
+                  <el-dropdown-item @click="router.push('/my-posts')">
+                    <el-icon><Document /></el-icon>
+                    My Posts
                   </el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>

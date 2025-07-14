@@ -31,13 +31,7 @@ const router = createRouter({
       path: '/profile',
       name: 'Profile',
       component: () => import('@/views/profile/index.vue'),
-      meta: { title: 'My Profile', requiresAuth: true }
-    },
-    {
-      path: '/profile/edit',
-      name: 'EditProfile',
-      component: () => import('@/views/profile/edit.vue'),
-      meta: { title: 'Edit Profile', requiresAuth: true }
+      meta: { title: 'Profile', requiresAuth: true }
     },
     {
       path: '/post/create',
