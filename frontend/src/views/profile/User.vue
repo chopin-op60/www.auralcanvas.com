@@ -1,12 +1,434 @@
 <template>
   <div class="user-profile-page">
-    <h1>用户主页</h1>
-    <p>用户主页页面，开发中...</p>
+    <div v-if="loading" class="loading-container">
+      <el-skeleton :rows="5" animated />
+    </div>
+    
+    <div v-else-if="!user" class="error-container">
+      <el-result
+        icon="warning"
+        title="User Not Found"
+        sub-title="The user you're looking for doesn't exist."
+      >
+        <template #extra>
+          <el-button type="primary" @click="$router.push('/home')">
+            Back to Home
+          </el-button>
+        </template>
+      </el-result>
+    </div>
+    
+    <div v-else class="profile-content">
+      <!-- Cover Image -->
+      <div class="cover-section">
+        <div 
+          class="cover-image"
+          :style="{ backgroundImage: user.cover_image ? `url(${getFileUrl(user.cover_image)})` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }"
+        >
+          <div class="cover-overlay"></div>
+        </div>
+      </div>
+      
+      <!-- Profile Header -->
+      <div class="profile-header">
+        <div class="avatar-section">
+          <el-avatar 
+            :src="getFileUrl(user.avatar)" 
+            :size="120"
+            class="user-avatar"
+          >
+            <el-icon><User /></el-icon>
+          </el-avatar>
+        </div>
+        
+        <div class="user-info">
+          <h1 class="username">{{ user.username }}</h1>
+          <p v-if="user.bio" class="bio">{{ user.bio }}</p>
+          
+          <div class="user-details">
+            <div v-if="user.location" class="detail-item">
+              <el-icon><Location /></el-icon>
+              <span>{{ user.location }}</span>
+            </div>
+            <div v-if="user.website" class="detail-item">
+              <el-icon><Link /></el-icon>
+              <a :href="user.website" target="_blank">{{ user.website }}</a>
+            </div>
+            <div class="detail-item">
+              <el-icon><Calendar /></el-icon>
+              <span>Joined {{ formatDate(user.created_at, 'MMM YYYY') }}</span>
+            </div>
+          </div>
+          
+          <div class="user-stats">
+            <div class="stat-item">
+              <span class="stat-number">{{ user.posts_count || 0 }}</span>
+              <span class="stat-label">Posts</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">{{ user.followers_count || 0 }}</span>
+              <span class="stat-label">Followers</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">{{ user.following_count || 0 }}</span>
+              <span class="stat-label">Following</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div v-if="!isCurrentUser" class="profile-actions">
+          <el-button 
+            v-if="friendStatus === 'none'" 
+            type="primary" 
+            @click="handleSendFriendRequest"
+            :loading="actionLoading"
+          >
+            <el-icon><Plus /></el-icon>
+            Add Friend
+          </el-button>
+          
+          <el-button 
+            v-else-if="friendStatus === 'pending'" 
+            disabled
+          >
+            <el-icon><Clock /></el-icon>
+            Request Sent
+          </el-button>
+          
+          <el-button 
+            v-else-if="friendStatus === 'accepted'" 
+            @click="handleStartConversation"
+            :loading="actionLoading"
+          >
+            <el-icon><ChatDotRound /></el-icon>
+            Message
+          </el-button>
+        </div>
+      </div>
+      
+      <!-- Posts Section -->
+      <div class="posts-section">
+        <div class="section-header">
+          <h2>Posts</h2>
+        </div>
+        
+        <div v-if="postsLoading" class="loading-container">
+          <el-skeleton :rows="3" animated />
+        </div>
+        
+        <div v-else-if="userPosts.length === 0" class="empty-posts">
+          <el-empty description="No posts yet" />
+        </div>
+        
+        <div v-else class="posts-grid">
+          <PostList 
+            :posts="userPosts"
+            :loading="postsLoading"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { 
+  User, Location, Link, Calendar, Plus, Clock, ChatDotRound 
+} from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+import { getFileUrl, formatDate } from '@/utils'
+import { getUser, getUserPosts } from '@/api/users'
+import { checkFriendStatus, sendFriendRequest } from '@/api/friends'
+import { createOrGetConversation } from '@/api/messages'
+import PostList from '@/components/post/PostList.vue'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+
+const user = ref(null)
+const userPosts = ref([])
+const friendStatus = ref('none')
+const loading = ref(false)
+const postsLoading = ref(false)
+const actionLoading = ref(false)
+
+const isCurrentUser = computed(() => {
+  return user.value && userStore.userId === user.value.id
+})
+
+const loadUserProfile = async () => {
+  loading.value = true
+  try {
+    const userId = route.params.id
+    const response = await getUser(userId)
+    user.value = response.data
+    
+    // 如果不是当前用户，检查好友状态
+    if (!isCurrentUser.value && userStore.isLoggedIn) {
+      await loadFriendStatus()
+    }
+  } catch (error) {
+    console.error('Failed to load user profile:', error)
+    ElMessage.error('Failed to load user profile')
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadUserPosts = async () => {
+  postsLoading.value = true
+  try {
+    const userId = route.params.id
+    const response = await getUserPosts(userId)
+    userPosts.value = response.data.posts || []
+  } catch (error) {
+    console.error('Failed to load user posts:', error)
+    ElMessage.error('Failed to load user posts')
+  } finally {
+    postsLoading.value = false
+  }
+}
+
+const loadFriendStatus = async () => {
+  try {
+    const response = await checkFriendStatus(user.value.id)
+    friendStatus.value = response.data.status
+  } catch (error) {
+    console.error('Failed to check friend status:', error)
+    friendStatus.value = 'none'
+  }
+}
+
+const handleSendFriendRequest = async () => {
+  actionLoading.value = true
+  try {
+    await sendFriendRequest({ userId: user.value.id })
+    ElMessage.success('Friend request sent successfully')
+    friendStatus.value = 'pending'
+  } catch (error) {
+    console.error('Failed to send friend request:', error)
+    ElMessage.error(error.response?.data?.message || 'Failed to send friend request')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+const handleStartConversation = async () => {
+  actionLoading.value = true
+  try {
+    const response = await createOrGetConversation(user.value.id)
+    const conversationId = response.data.conversation.id
+    router.push(`/messages/${conversationId}`)
+  } catch (error) {
+    console.error('Failed to start conversation:', error)
+    ElMessage.error('Failed to start conversation')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadUserProfile()
+  loadUserPosts()
+})
+</script>
+
 <style lang="scss" scoped>
 .user-profile-page {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.loading-container,
+.error-container {
+  padding: 40px;
+  text-align: center;
+}
+
+.profile-content {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.cover-section {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  
+  .cover-image {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  
+  .cover-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.3));
+  }
+}
+
+.profile-header {
+  padding: 0 30px 30px;
+  position: relative;
+  
+  .avatar-section {
+    display: flex;
+    justify-content: center;
+    margin-top: -60px;
+    margin-bottom: 20px;
+    
+    .user-avatar {
+      border: 4px solid white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
+  
+  .user-info {
+    text-align: center;
+    margin-bottom: 20px;
+    
+    .username {
+      font-size: 28px;
+      font-weight: 700;
+      color: #303133;
+      margin: 0 0 10px 0;
+    }
+    
+    .bio {
+      font-size: 16px;
+      color: #606266;
+      margin: 0 0 20px 0;
+      line-height: 1.6;
+    }
+    
+    .user-details {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 20px;
+      
+      .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #909399;
+        font-size: 14px;
+        
+        .el-icon {
+          font-size: 16px;
+        }
+        
+        a {
+          color: #409EFF;
+          text-decoration: none;
+          
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+    
+    .user-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        
+        .stat-number {
+          font-size: 20px;
+          font-weight: 700;
+          color: #303133;
+        }
+        
+        .stat-label {
+          font-size: 12px;
+          color: #909399;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+      }
+    }
+  }
+  
+  .profile-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    
+    .el-button .el-icon {
+      margin-right: 6px;
+    }
+  }
+}
+
+.posts-section {
+  background: white;
+  border-radius: 12px;
   padding: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  
+  .section-header {
+    margin-bottom: 20px;
+    
+    h2 {
+      margin: 0;
+      color: #303133;
+      font-size: 20px;
+    }
+  }
+  
+  .empty-posts {
+    padding: 40px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-header {
+    padding: 0 20px 20px;
+    
+    .user-info {
+      .username {
+        font-size: 24px;
+      }
+      
+      .user-details {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .user-stats {
+        gap: 20px;
+      }
+    }
+  }
+  
+  .cover-section {
+    height: 150px;
+  }
+  
+  .posts-section {
+    padding: 15px;
+  }
 }
 </style>

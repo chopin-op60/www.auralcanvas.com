@@ -1,0 +1,127 @@
+const BaseController = require('./BaseController');
+const FriendService = require('../services/FriendService');
+
+class FriendController extends BaseController {
+    constructor() {
+        super();
+        this.friendService = new FriendService();
+    }
+
+    // 获取好友列表
+    getFriends = this.handleAsync(async (req, res) => {
+        try {
+            const friends = await this.friendService.getFriendsList(req.user.id);
+            this.sendSuccess(res, { friends }, 'Friends list retrieved successfully');
+        } catch (error) {
+            this.sendError(res, 'Failed to get friends list', 500, error.message);
+        }
+    });
+
+    // 搜索用户（添加好友时使用）
+    searchUsers = this.handleAsync(async (req, res) => {
+        const { keyword } = req.query;
+        const { page, limit, offset } = this.getPagination(req);
+
+        if (!keyword || keyword.trim().length === 0) {
+            return this.sendError(res, 'Search keyword is required', 400);
+        }
+
+        try {
+            const result = await this.friendService.searchUsersForFriend(
+                req.user.id, 
+                keyword.trim(), 
+                offset, 
+                limit
+            );
+            
+            const response = {
+                users: result.data,
+                pagination: {
+                    page,
+                    limit,
+                    total: result.total,
+                    totalPages: Math.ceil(result.total / limit)
+                }
+            };
+
+            this.sendSuccess(res, response, 'User search completed');
+        } catch (error) {
+            this.sendError(res, 'Search failed', 500, error.message);
+        }
+    });
+
+    // 发送好友请求
+    sendFriendRequest = this.handleAsync(async (req, res) => {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return this.sendError(res, 'User ID is required', 400);
+        }
+
+        if (userId === req.user.id) {
+            return this.sendError(res, 'Cannot send friend request to yourself', 400);
+        }
+
+        try {
+            await this.friendService.sendFriendRequest(req.user.id, userId);
+            this.sendSuccess(res, null, 'Friend request sent successfully');
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // 响应好友请求
+    respondFriendRequest = this.handleAsync(async (req, res) => {
+        const { requestId } = req.params;
+        const { action } = req.body; // 'accept' or 'reject'
+
+        if (!['accept', 'reject'].includes(action)) {
+            return this.sendError(res, 'Invalid action. Must be accept or reject', 400);
+        }
+
+        try {
+            await this.friendService.respondToFriendRequest(requestId, req.user.id, action);
+            this.sendSuccess(res, null, `Friend request ${action}ed successfully`);
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // 获取好友请求列表
+    getFriendRequests = this.handleAsync(async (req, res) => {
+        const { status } = req.query; // 'pending', 'accepted', etc.
+
+        try {
+            const requests = await this.friendService.getFriendRequests(req.user.id, status);
+            this.sendSuccess(res, { requests }, 'Friend requests retrieved successfully');
+        } catch (error) {
+            this.sendError(res, 'Failed to get friend requests', 500, error.message);
+        }
+    });
+
+    // 删除好友
+    removeFriend = this.handleAsync(async (req, res) => {
+        const { friendId } = req.params;
+
+        try {
+            await this.friendService.removeFriend(req.user.id, friendId);
+            this.sendSuccess(res, null, 'Friend removed successfully');
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // 检查好友状态
+    checkFriendStatus = this.handleAsync(async (req, res) => {
+        const { userId } = req.params;
+
+        try {
+            const status = await this.friendService.getFriendStatus(req.user.id, userId);
+            this.sendSuccess(res, { status }, 'Friend status retrieved');
+        } catch (error) {
+            this.sendError(res, 'Failed to check friend status', 500, error.message);
+        }
+    });
+}
+
+module.exports = new FriendController();

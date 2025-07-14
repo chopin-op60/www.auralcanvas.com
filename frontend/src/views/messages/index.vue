@@ -1,0 +1,155 @@
+<template>
+  <div class="messages-page">
+    <div class="messages-container">
+      <!-- Conversations List -->
+      <div class="conversations-sidebar">
+        <div class="sidebar-header">
+          <h2>Messages</h2>
+        </div>
+        
+        <div class="conversations-list">
+          <ConversationsList 
+            :conversations="conversations"
+            :loading="conversationsLoading"
+            :activeConversation="activeConversationId"
+            @conversation-selected="handleConversationSelected"
+          />
+        </div>
+      </div>
+      
+      <!-- Chat Area -->
+      <div class="chat-area">
+        <div v-if="!activeConversationId" class="no-conversation">
+          <el-empty description="Select a conversation to start chatting">
+            <el-button type="primary" @click="$router.push('/friends')">
+              Go to Friends
+            </el-button>
+          </el-empty>
+        </div>
+        
+        <ChatWindow 
+          v-else
+          :conversationId="activeConversationId"
+          :conversation="activeConversation"
+          @message-sent="handleMessageSent"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getConversations } from '@/api/messages'
+import ConversationsList from '@/components/messages/ConversationsList.vue'
+import ChatWindow from '@/components/messages/ChatWindow.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+const conversations = ref([])
+const conversationsLoading = ref(false)
+const activeConversationId = ref(null)
+
+const activeConversation = computed(() => {
+  return conversations.value.find(c => c.id === activeConversationId.value)
+})
+
+const loadConversations = async () => {
+  conversationsLoading.value = true
+  try {
+    const response = await getConversations()
+    conversations.value = response.data.conversations || []
+    
+    // 如果路由中有conversation ID，设置为活跃对话
+    if (route.params.id) {
+      activeConversationId.value = parseInt(route.params.id)
+    }
+  } catch (error) {
+    console.error('Failed to load conversations:', error)
+    ElMessage.error('Failed to load conversations')
+  } finally {
+    conversationsLoading.value = false
+  }
+}
+
+const handleConversationSelected = (conversationId) => {
+  activeConversationId.value = conversationId
+  router.push(`/messages/${conversationId}`)
+}
+
+const handleMessageSent = () => {
+  // 刷新对话列表以更新最后消息时间
+  loadConversations()
+}
+
+onMounted(() => {
+  loadConversations()
+})
+</script>
+
+<style lang="scss" scoped>
+.messages-page {
+  height: calc(100vh - 120px);
+  max-height: 800px;
+}
+
+.messages-container {
+  display: flex;
+  height: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.conversations-sidebar {
+  width: 320px;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+  
+  .sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid #f0f0f0;
+    
+    h2 {
+      margin: 0;
+      color: #303133;
+      font-size: 18px;
+    }
+  }
+  
+  .conversations-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+}
+
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  
+  .no-conversation {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .messages-container {
+    flex-direction: column;
+  }
+  
+  .conversations-sidebar {
+    width: 100%;
+    max-height: 200px;
+  }
+}
+</style>

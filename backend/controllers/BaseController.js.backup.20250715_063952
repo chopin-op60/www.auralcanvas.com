@@ -24,7 +24,7 @@ class BaseController {
         return res.status(statusCode).json({
             success: false,
             message,
-            error: error, // 临时显示所有错误信息用于调试
+            error: process.env.NODE_ENV === 'development' ? error : null,
             timestamp: new Date().toISOString()
         });
     }

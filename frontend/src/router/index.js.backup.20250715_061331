@@ -58,24 +58,6 @@ const router = createRouter({
       meta: { title: 'User Profile' }
     },
     {
-      path: '/friends',
-      name: 'Friends',
-      component: () => import('@/views/friends/index.vue'),
-      meta: { title: 'Friends', requiresAuth: true }
-    },
-    {
-      path: '/messages',
-      name: 'Messages',
-      component: () => import('@/views/messages/index.vue'),
-      meta: { title: 'Messages', requiresAuth: true }
-    },
-    {
-      path: '/messages/:id',
-      name: 'MessageConversation',
-      component: () => import('@/views/messages/index.vue'),
-      meta: { title: 'Messages', requiresAuth: true }
-    },
-    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       component: () => import('@/views/error/404.vue'),
