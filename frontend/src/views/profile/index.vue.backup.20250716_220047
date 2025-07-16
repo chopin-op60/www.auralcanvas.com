@@ -75,22 +75,18 @@
       
       <!-- Posts Section -->
       <div class="posts-section">
-        <el-tabs v-model="activeTab" class="profile-tabs" @tab-change="handleTabChange">
+        <el-tabs v-model="activeTab" class="profile-tabs">
           <el-tab-pane label="My Posts" name="posts">
             <PostList 
               :posts="userPosts" 
               :loading="postsLoading" 
               @post-deleted="handlePostDeleted"
-              @post-updated="handlePostUpdated"
             />
           </el-tab-pane>
           <el-tab-pane label="Liked Posts" name="liked">
-            <PostList 
-              :posts="likedPosts" 
-              :loading="likedPostsLoading" 
-              @post-deleted="handleLikedPostDeleted"
-              @post-updated="handleLikedPostUpdated"
-            />
+            <div class="coming-soon">
+              <el-empty description="Coming soon..." />
+            </div>
           </el-tab-pane>
         </el-tabs>
       </div>
@@ -101,28 +97,18 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture, User, Location, Link, Calendar, Edit } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getUserProfile } from '@/api/auth'
-import { getUserPosts, getUserLikedPosts } from '@/api/users'
+import { getUserPosts } from '@/api/users'
 import { getFileUrl, formatDate } from '@/utils'
 import PostList from '@/components/post/PostList.vue'
 
 const userStore = useUserStore()
 const loading = ref(true)
 const postsLoading = ref(false)
-const likedPostsLoading = ref(false)
 const profile = ref({})
 const userPosts = ref([])
-const likedPosts = ref([])
 const activeTab = ref('posts')
-
-// Tab change handler
-const handleTabChange = async (tab) => {
-  if (tab === 'liked' && likedPosts.value.length === 0) {
-    await loadLikedPosts()
-  }
-}
 
 // Load profile data
 const loadProfile = async () => {
@@ -152,52 +138,12 @@ const loadUserPosts = async () => {
   }
 }
 
-// Load liked posts
-const loadLikedPosts = async () => {
-  try {
-    likedPostsLoading.value = true
-    const response = await getUserLikedPosts(userStore.userId, { limit: 20 })
-    likedPosts.value = response.data.posts || []
-    console.log('Loaded liked posts:', likedPosts.value.length)
-  } catch (error) {
-    console.error('Failed to load liked posts:', error)
-    ElMessage.error('Failed to load liked posts')
-  } finally {
-    likedPostsLoading.value = false
-  }
-}
-
-// Handle post deleted from user posts
+// Handle post deleted
 const handlePostDeleted = (deletedPostId) => {
   userPosts.value = userPosts.value.filter(post => post.id !== deletedPostId)
   // Update posts count
   if (profile.value.posts_count > 0) {
     profile.value.posts_count--
-  }
-}
-
-// Handle post deleted from liked posts (when others delete)
-const handleLikedPostDeleted = (deletedPostId) => {
-  likedPosts.value = likedPosts.value.filter(post => post.id !== deletedPostId)
-}
-
-// Handle post updated (like status changed)
-const handlePostUpdated = (updatedData) => {
-  const post = userPosts.value.find(p => p.id === updatedData.id)
-  if (post) {
-    Object.assign(post, updatedData)
-  }
-}
-
-const handleLikedPostUpdated = (updatedData) => {
-  const post = likedPosts.value.find(p => p.id === updatedData.id)
-  if (post) {
-    Object.assign(post, updatedData)
-    
-    // If user unliked this post, remove from liked posts list
-    if ('liked' in updatedData && !updatedData.liked) {
-      likedPosts.value = likedPosts.value.filter(p => p.id !== updatedData.id)
-    }
   }
 }
 
@@ -359,8 +305,12 @@ onMounted(async () => {
     
     :deep(.el-tabs__content) {
       padding: 20px 30px;
-      min-height: 400px;
     }
+  }
+  
+  .coming-soon {
+    text-align: center;
+    padding: 40px 20px;
   }
 }
 

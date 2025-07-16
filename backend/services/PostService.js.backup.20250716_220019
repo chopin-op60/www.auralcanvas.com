@@ -35,8 +35,7 @@ class PostService extends BaseService {
                 title: postData.title.trim(),
                 description: postData.description ? postData.description.trim() : null,
                 content_text: hasTextContent ? postData.content_text.trim() : null,
-                likes_count: 0,
-                comments_count: 0
+                likes_count: 0
             };
 
             const post = await this.create(basicPostData);
@@ -88,7 +87,6 @@ class PostService extends BaseService {
                     p.has_audio,
                     p.media_count,
                     p.likes_count,
-                    p.comments_count,
                     p.created_at,
                     p.updated_at,
                     u.username,
@@ -112,7 +110,7 @@ class PostService extends BaseService {
                         ...post,
                         media: mediaFiles,
                         actual_likes_count: post.likes_count || 0,
-                        actual_comments_count: post.comments_count || 0
+                        comments_count: 0
                     };
                 })
             );
@@ -145,7 +143,6 @@ class PostService extends BaseService {
                     p.has_audio,
                     p.media_count,
                     p.likes_count,
-                    p.comments_count,
                     p.created_at,
                     p.updated_at,
                     u.username,
@@ -163,7 +160,7 @@ class PostService extends BaseService {
                 const mediaFiles = await this.mediaService.getMediaByPostId(post.id);
                 post.media = mediaFiles;
                 post.actual_likes_count = post.likes_count || 0;
-                post.actual_comments_count = post.comments_count || 0;
+                post.comments_count = 0;
             }
             
             return post;
@@ -226,72 +223,34 @@ class PostService extends BaseService {
         }
     }
 
-    // 获取用户点赞的帖子
-    async getUserLikedPosts(userId, offset = 0, limit = 10) {
+    async toggleLike(postId, userId) {
         try {
-            const safeUserId = parseInt(userId);
-            const safeOffset = parseInt(offset);
-            const safeLimit = parseInt(limit);
+            const post = await this.findById(postId);
+            if (!post) {
+                throw new Error('Post not found');
+            }
 
-            console.log('Getting liked posts for user:', safeUserId);
-
-            const query = `
-                SELECT 
-                    p.id,
-                    p.user_id,
-                    p.title,
-                    p.description,
-                    p.content_text,
-                    p.has_images,
-                    p.has_audio,  
-                    p.media_count,
-                    p.likes_count,
-                    p.comments_count,
-                    p.created_at,
-                    p.updated_at,
-                    u.username,
-                    u.avatar as user_avatar,
-                    l.created_at as liked_at
-                FROM posts p
-                JOIN users u ON p.user_id = u.id
-                JOIN likes l ON p.id = l.post_id
-                WHERE l.user_id = ?
-                ORDER BY l.created_at DESC
-                LIMIT ${safeLimit} OFFSET ${safeOffset}
-            `;
-
-            const [rows] = await this.db.execute(query, [safeUserId]);
-
-            // 为每个帖子加载媒体文件
-            const postsWithMedia = await Promise.all(
-                rows.map(async (post) => {
-                    const mediaFiles = await this.mediaService.getMediaByPostId(post.id);
-                    return {
-                        ...post,
-                        media: mediaFiles,
-                        user_liked: true, // 这些都是用户点赞的帖子
-                        actual_likes_count: post.likes_count || 0,
-                        actual_comments_count: post.comments_count || 0
-                    };
-                })
+            const [existingLike] = await this.db.execute(
+                'SELECT id FROM likes WHERE post_id = ? AND user_id = ?',
+                [parseInt(postId), parseInt(userId)]
             );
 
-            const countQuery = `
-                SELECT COUNT(*) as total 
-                FROM likes l 
-                WHERE l.user_id = ?
-            `;
-            const [countResult] = await this.db.execute(countQuery, [safeUserId]);
-
-            console.log('Found liked posts:', postsWithMedia.length, 'Total:', countResult[0].total);
-
-            return {
-                data: postsWithMedia,
-                total: countResult[0].total
-            };
+            if (existingLike.length > 0) {
+                await this.db.execute(
+                    'DELETE FROM likes WHERE post_id = ? AND user_id = ?',
+                    [parseInt(postId), parseInt(userId)]
+                );
+                return { liked: false };
+            } else {
+                await this.db.execute(
+                    'INSERT INTO likes (post_id, user_id) VALUES (?, ?)',
+                    [parseInt(postId), parseInt(userId)]
+                );
+                return { liked: true };
+            }
         } catch (error) {
-            console.error('Error in getUserLikedPosts:', error);
-            throw error;
+            console.error('Database error in toggleLike:', error);
+            throw new Error(`Failed to toggle like: ${error.message}`);
         }
     }
 }

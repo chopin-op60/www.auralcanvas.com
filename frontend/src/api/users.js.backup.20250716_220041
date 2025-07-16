@@ -17,15 +17,6 @@ export function getUserPosts(id, params) {
   })
 }
 
-// 获取用户点赞的帖子
-export function getUserLikedPosts(id, params) {
-  return request({
-    url: `/users/${id}/liked-posts`,
-    method: 'get',
-    params
-  })
-}
-
 // 搜索用户
 export function searchUsers(params) {
   return request({

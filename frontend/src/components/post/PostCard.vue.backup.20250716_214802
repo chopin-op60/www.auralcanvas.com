@@ -2,7 +2,7 @@
   <div class="post-card">
     <div class="post-header">
       <div class="user-info">
-        <el-avatar :src="getFileUrl(post.user_avatar)" :size="40">
+        <el-avatar :src="post.user_avatar" :size="40">
           <el-icon><User /></el-icon>
         </el-avatar>
         <div class="user-details">
@@ -83,67 +83,32 @@
       </div>
     </div>
     
-    <!-- Post Actions -->
     <div class="post-actions">
-      <el-button 
-        text 
-        @click="handleLike"
-        :loading="likeLoading"
-        :class="{ 'liked': isLiked }"
-        class="action-button like-button"
-      >
+      <el-button text @click="handleLike">
         <el-icon><StarFilled /></el-icon>
-        {{ currentLikesCount }}
+        {{ post.likes_count || 0 }}
       </el-button>
-      
-      <el-button 
-        text 
-        @click="handleComment"
-        class="action-button comment-button"
-      >
+      <el-button text @click="handleComment">
         <el-icon><ChatDotSquare /></el-icon>
-        {{ currentCommentsCount }}
+        {{ post.comments_count || 0 }}
       </el-button>
-      
-      <el-button text @click="handleShare" class="action-button">
+      <el-button text @click="handleShare">
         <el-icon><Share /></el-icon>
         Share
       </el-button>
-    </div>
-    
-    <!-- Comments Section -->
-    <div v-if="showComments" class="comments-section">
-      <!-- Comment Form -->
-      <CommentForm 
-        v-if="userStore.isLoggedIn"
-        :post-id="post.id"
-        :username="post.username"
-        @comment-added="handleCommentAdded"
-      />
-      
-      <!-- Comments List -->
-      <CommentList 
-        :comments="comments"
-        :loading="commentsLoading"
-        :has-more="hasMoreComments"
-        @comment-deleted="handleCommentDeleted"
-        @load-more="loadMoreComments"
-      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { 
   User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete
 } from '@element-plus/icons-vue'
 import { fromNow, getFileUrl } from '@/utils'
 import { useUserStore } from '@/stores/user'
-import { deletePost, toggleLike, getComments } from '@/api/posts'
-import CommentForm from './CommentForm.vue'
-import CommentList from './CommentList.vue'
+import { deletePost } from '@/api/posts'
 
 const props = defineProps({
   post: {
@@ -152,27 +117,15 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['post-deleted', 'post-updated'])
+const emit = defineEmits(['post-deleted'])
 const userStore = useUserStore()
 
-// Reactive data
-const likeLoading = ref(false)
-const commentsLoading = ref(false)
-const showComments = ref(false)
-const comments = ref([])
-const commentsPage = ref(1)
-const hasMoreComments = ref(false)
-
-// Computed properties
+// 权限检查
 const canDelete = computed(() => {
   return userStore.isLoggedIn && 
          userStore.userId && 
          props.post.user_id === userStore.userId
 })
-
-const isLiked = ref(props.post.user_liked || false)
-const currentLikesCount = ref(props.post.likes_count || 0)
-const currentCommentsCount = ref(props.post.comments_count || 0)
 
 // 分离图片和音频文件
 const imageFiles = computed(() => {
@@ -231,143 +184,17 @@ const handleDelete = async () => {
   }
 }
 
-// Like functionality
-const handleLike = async () => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('Please login to like posts')
-    return
-  }
-
-  likeLoading.value = true
-  
-  try {
-    const response = await toggleLike(props.post.id)
-    const { liked, likes_count } = response.data
-    
-    isLiked.value = liked
-    currentLikesCount.value = likes_count
-    
-    // Update the original post object
-    props.post.user_liked = liked
-    props.post.likes_count = likes_count
-    
-    emit('post-updated', { 
-      id: props.post.id, 
-      liked, 
-      likes_count 
-    })
-    
-  } catch (error) {
-    console.error('Failed to toggle like:', error)
-    ElMessage.error(error.response?.data?.message || 'Failed to update like')
-  } finally {
-    likeLoading.value = false
-  }
+const handleLike = () => {
+  console.log('Like clicked');
 }
 
-// Comment functionality
-const handleComment = async () => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('Please login to view comments')
-    return
-  }
-
-  if (!showComments.value) {
-    showComments.value = true
-    await loadComments()
-  } else {
-    showComments.value = false
-  }
-}
-
-const loadComments = async () => {
-  if (commentsLoading.value) return
-
-  commentsLoading.value = true
-  
-  try {
-    const response = await getComments(props.post.id, {
-      page: 1,
-      limit: 10
-    })
-    
-    const { comments: commentData, pagination } = response.data
-    comments.value = commentData
-    currentCommentsCount.value = pagination.total
-    hasMoreComments.value = pagination.page < pagination.totalPages
-    commentsPage.value = 1
-    
-    // Update original post
-    props.post.comments_count = pagination.total
-    
-  } catch (error) {
-    console.error('Failed to load comments:', error)
-    ElMessage.error('Failed to load comments')
-  } finally {
-    commentsLoading.value = false
-  }
-}
-
-const loadMoreComments = async () => {
-  if (commentsLoading.value) return
-
-  commentsLoading.value = true
-  
-  try {
-    const response = await getComments(props.post.id, {
-      page: commentsPage.value + 1,
-      limit: 10
-    })
-    
-    const { comments: newComments, pagination } = response.data
-    comments.value.push(...newComments)
-    hasMoreComments.value = pagination.page < pagination.totalPages
-    commentsPage.value = pagination.page
-    
-  } catch (error) {
-    console.error('Failed to load more comments:', error)
-    ElMessage.error('Failed to load more comments')
-  } finally {
-    commentsLoading.value = false
-  }
-}
-
-const handleCommentAdded = (newComment) => {
-  comments.value.unshift(newComment)
-  currentCommentsCount.value++
-  props.post.comments_count = currentCommentsCount.value
-  
-  emit('post-updated', { 
-    id: props.post.id, 
-    comments_count: currentCommentsCount.value 
-  })
-}
-
-const handleCommentDeleted = (commentId) => {
-  const index = comments.value.findIndex(c => c.id === commentId)
-  if (index > -1) {
-    comments.value.splice(index, 1)
-    currentCommentsCount.value--
-    props.post.comments_count = currentCommentsCount.value
-    
-    emit('post-updated', { 
-      id: props.post.id, 
-      comments_count: currentCommentsCount.value 
-    })
-  }
+const handleComment = () => {
+  console.log('Comment clicked');
 }
 
 const handleShare = () => {
-  // TODO: Implement share functionality
-  ElMessage.info('Share feature coming soon!')
+  console.log('Share clicked');
 }
-
-// Initialize like status
-onMounted(() => {
-  isLiked.value = props.post.user_liked || false
-  currentLikesCount.value = props.post.likes_count || 0
-  currentCommentsCount.value = props.post.comments_count || 0
-})
 </script>
 
 <style lang="scss" scoped>
@@ -591,34 +418,18 @@ onMounted(() => {
   padding-top: 15px;
   border-top: 1px solid #f0f0f0;
   
-  .action-button {
+  .el-button {
     color: #909399;
     font-size: 14px;
-    transition: all 0.3s ease;
+    
+    &:hover {
+      color: #409EFF;
+    }
     
     .el-icon {
       margin-right: 4px;
     }
-    
-    &:hover {
-      color: #409EFF;
-      transform: translateY(-1px);
-    }
-    
-    &.liked {
-      color: #f56c6c;
-      
-      &:hover {
-        color: #f78989;
-      }
-    }
   }
-}
-
-.comments-section {
-  margin-top: 16px;
-  max-height: 600px;
-  overflow-y: auto;
 }
 
 // 删除菜单样式
@@ -671,13 +482,9 @@ onMounted(() => {
   .post-actions {
     gap: 15px;
     
-    .action-button {
+    .el-button {
       font-size: 12px;
     }
-  }
-  
-  .comments-section {
-    max-height: 400px;
   }
 }
 </style>

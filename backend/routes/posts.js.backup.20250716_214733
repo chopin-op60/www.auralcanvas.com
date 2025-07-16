@@ -10,8 +10,8 @@ router.get('/test', (req, res) => {
         success: true,
         message: 'Mixed-content Posts API is ready!',
         data: { 
-            message: 'Posts now support mixed content with likes and comments',
-            features: ['Multi-file upload', 'Mixed content types', 'Media management', 'Likes', 'Comments'],
+            message: 'Posts now support mixed content (text + images + audio)',
+            features: ['Multi-file upload', 'Mixed content types', 'Media management'],
             supportedFormats: {
                 images: ['JPEG', 'PNG', 'GIF', 'WebP'],
                 audio: ['MP3', 'WAV', 'M4A', 'OGG', 'FLAC']
@@ -25,13 +25,11 @@ router.get('/', PostController.getPosts);
 router.get('/:id', PostController.getPost);
 
 // Protected routes (require authentication)
+// Enhanced with debug upload middleware
 router.post('/', auth, debugUpload, PostController.createPost);
 router.put('/:id', auth, PostController.updatePost);
 router.delete('/:id', auth, PostController.deletePost);
-
-// Like routes
 router.post('/:id/like', auth, PostController.toggleLike);
-router.get('/:id/likes', PostController.getPostLikes);
 
 // Comments routes
 router.get('/:id/comments', PostController.getComments);

@@ -54,15 +54,6 @@ export function toggleLike(id) {
   })
 }
 
-// 获取帖子点赞列表
-export function getPostLikes(postId, params) {
-  return request({
-    url: `/posts/${postId}/likes`,
-    method: 'get',
-    params
-  })
-}
-
 // 获取评论列表
 export function getComments(postId, params) {
   return request({
