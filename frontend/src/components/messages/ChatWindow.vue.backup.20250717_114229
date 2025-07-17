@@ -395,13 +395,11 @@ onMounted(() => {
               margin: 0 0 2px 0;
               font-size: 14px;
               line-height: 1.4;
-            
-              color: #303133 !important;}
+            }
             
             .comment-time {
               font-size: 11px;
               opacity: 0.7;
-              color: #909399 !important;
             }
           }
         }

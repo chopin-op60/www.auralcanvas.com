@@ -584,7 +584,7 @@ onMounted(() => {
     
     .comment-text {
       flex: 1;
-      color: #303133 !important;
+      color: #303133;
       font-size: 14px;
       line-height: 1.5;
       margin-top: 2px;
@@ -617,7 +617,7 @@ onMounted(() => {
     .user-details {
       .username {
         font-weight: 600;
-        color: #303133 !important;
+        color: #303133;
         font-size: 14px;
       }
       
@@ -635,7 +635,7 @@ onMounted(() => {
       color: #909399;
       
       &:hover {
-        color: #303133 !important;
+        color: #303133;
         background: #f5f7fa;
       }
     }
@@ -645,7 +645,7 @@ onMounted(() => {
 .post-content {
   .post-title {
     font-size: 18px;
-    color: #303133 !important;
+    color: #303133;
     margin-bottom: 8px;
     font-weight: 600;
   }
@@ -668,7 +668,7 @@ onMounted(() => {
     }
     
     p {
-      color: #303133 !important;
+      color: #303133;
       line-height: 1.6;
       margin: 0;
       white-space: pre-wrap;
