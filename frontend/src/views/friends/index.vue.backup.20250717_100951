@@ -2,11 +2,8 @@
   <div class="friends-page">
     <div class="page-header">
       <h1>Friends</h1>
-      <el-button 
-        type="primary" 
-        @click="showAddFriendDialog = true"
-        :icon="Plus"
-      >
+      <el-button type="primary" @click="showAddFriendDialog = true">
+        <el-icon><Plus /></el-icon>
         Add Friend
       </el-button>
     </div>
@@ -20,20 +17,25 @@
           @chat-with-friend="handleChatWithFriend"
         />
       </el-tab-pane>
-      <el-tab-pane label="Requests" name="requests">
+      
+      <el-tab-pane name="requests">
+        <template #label>
+          Requests
+          <el-badge v-if="requests.length > 0" :value="requests.length" class="tab-badge" />
+        </template>
         <FriendRequests 
-          :requests="requests" 
+          :requests="requests"
           :loading="requestsLoading"
           @respond-request="handleRespondRequest"
         />
       </el-tab-pane>
     </el-tabs>
     
-    <el-dialog
-      v-model="showAddFriendDialog"
-      title="Add New Friend"
+    <!-- Add Friend Dialog -->
+    <el-dialog 
+      v-model="showAddFriendDialog" 
+      title="Add Friend" 
       width="500px"
-      :before-close="() => showAddFriendDialog = false"
     >
       <AddFriendForm @friend-added="handleFriendAdded" />
     </el-dialog>
@@ -69,16 +71,10 @@ const loadFriends = async () => {
   loading.value = true
   try {
     const response = await getFriends()
-    
-    // 修复数据格式问题：后端返回 {friends: [...]}
-    const friendsArray = response.data?.friends || response.data || []
-    friends.value = friendsArray
-    
-    console.log('Loaded friends:', friendsArray.length)
+    friends.value = response.data.friends || []
   } catch (error) {
     console.error('Failed to load friends:', error)
     ElMessage.error('Failed to load friends')
-    friends.value = []
   } finally {
     loading.value = false
   }
@@ -88,16 +84,10 @@ const loadFriendRequests = async () => {
   requestsLoading.value = true
   try {
     const response = await getFriendRequests({ status: 'pending' })
-    
-    // 修复数据格式问题：后端返回 {requests: [...]}
-    const requestsArray = response.data?.requests || response.data || []
-    requests.value = requestsArray
-    
-    console.log('Loaded friend requests:', requestsArray.length)
+    requests.value = response.data.requests || []
   } catch (error) {
     console.error('Failed to load friend requests:', error)
     ElMessage.error('Failed to load friend requests')
-    requests.value = []
   } finally {
     requestsLoading.value = false
   }
@@ -117,7 +107,7 @@ const handleRemoveFriend = async (friendId) => {
 const handleRespondRequest = async (requestId, action) => {
   try {
     await respondFriendRequest(requestId, action)
-    ElMessage.success(`Friend request ${action}ed`)
+    ElMessage.success(`Friend request ${action}`)
     loadFriendRequests()
     
     if (action === 'accept') {
@@ -169,27 +159,11 @@ onMounted(() => {
   }
 }
 
+.tab-badge {
+  margin-left: 8px;
+}
+
 :deep(.el-tabs__content) {
   padding-top: 20px;
-}
-
-:deep(.el-dialog) {
-  border-radius: 12px;
-}
-
-@media (max-width: 768px) {
-  .friends-page {
-    padding: 0 15px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
-    
-    .el-button {
-      width: 100%;
-    }
-  }
 }
 </style>

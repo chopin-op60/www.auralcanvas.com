@@ -1,28 +1,11 @@
 import request from '@/utils/request'
 
 // 获取对话列表
-export function getConversations() {
+export function getConversations(params) {
   return request({
     url: '/messages/conversations',
-    method: 'get'
-  })
-}
-
-// 创建对话
-export function createConversation(data) {
-  return request({
-    url: '/messages/conversations',
-    method: 'post',
-    data
-  })
-}
-
-// 创建或获取与指定用户的对话
-export function createOrGetConversation(userId) {
-  return request({
-    url: '/messages/conversations',
-    method: 'post',
-    data: { userId }
+    method: 'get',
+    params
   })
 }
 
@@ -36,20 +19,19 @@ export function getConversationMessages(conversationId, params) {
 }
 
 // 发送消息
-export function sendMessage(conversationId, data) {
+export function sendMessage(data) {
   return request({
-    url: `/messages/conversations/${conversationId}/messages`,
+    url: '/messages/send',
     method: 'post',
     data
   })
 }
 
-// 分享帖子到对话
-export function sharePostToConversation(conversationId, data) {
+// 标记消息为已读
+export function markMessageAsRead(messageId) {
   return request({
-    url: `/messages/conversations/${conversationId}/share-post`,
-    method: 'post',
-    data
+    url: `/messages/${messageId}/read`,
+    method: 'put'
   })
 }
 
@@ -61,7 +43,16 @@ export function markConversationAsRead(conversationId) {
   })
 }
 
-// 获取未读消息数
+// 创建或获取对话
+export function createOrGetConversation(userId) {
+  return request({
+    url: '/messages/conversations/create',
+    method: 'post',
+    data: { userId }
+  })
+}
+
+// 获取未读消息数量
 export function getUnreadCount() {
   return request({
     url: '/messages/unread-count',

@@ -8,10 +8,10 @@ const { upload, debugUpload } = require('../utils/fileUpload');
 router.get('/test', (req, res) => {
     res.json({ 
         success: true,
-        message: 'Mixed-content Posts API with Repost support is ready!',
+        message: 'Mixed-content Posts API is ready!',
         data: { 
-            message: 'Posts now support mixed content with likes, comments and reposts',
-            features: ['Multi-file upload', 'Mixed content types', 'Media management', 'Likes', 'Comments', 'Reposts'],
+            message: 'Posts now support mixed content with likes and comments',
+            features: ['Multi-file upload', 'Mixed content types', 'Media management', 'Likes', 'Comments'],
             supportedFormats: {
                 images: ['JPEG', 'PNG', 'GIF', 'WebP'],
                 audio: ['MP3', 'WAV', 'M4A', 'OGG', 'FLAC']
@@ -29,12 +29,9 @@ router.post('/', auth, debugUpload, PostController.createPost);
 router.put('/:id', auth, PostController.updatePost);
 router.delete('/:id', auth, PostController.deletePost);
 
-// Interaction routes
+// Like routes
 router.post('/:id/like', auth, PostController.toggleLike);
 router.get('/:id/likes', PostController.getPostLikes);
-
-router.post('/:id/repost', auth, PostController.toggleRepost);
-router.get('/:id/reposts', PostController.getPostReposts);
 
 // Comments routes
 router.get('/:id/comments', PostController.getComments);

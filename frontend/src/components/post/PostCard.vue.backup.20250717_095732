@@ -140,30 +140,16 @@
           {{ currentCommentsCount }}
         </el-button>
         
-        <!-- 分享按钮下拉菜单 -->
-        <el-dropdown trigger="click" @command="handleShareCommand">
-          <el-button 
-            text 
-            class="action-button share-button"
-            :loading="repostLoading"
-          >
-            <el-icon><Share /></el-icon>
-            {{ currentRepostsCount }}
-            <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="repost">
-                <el-icon><Refresh /></el-icon>
-                {{ isReposted ? 'Remove Repost' : 'Repost' }}
-              </el-dropdown-item>
-              <el-dropdown-item command="share-to-friend">
-                <el-icon><ChatDotRound /></el-icon>
-                Share to Friend
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <el-button 
+          text 
+          @click="handleRepost"
+          :loading="repostLoading"
+          :class="{ 'reposted': isReposted }"
+          class="action-button repost-button"
+        >
+          <el-icon><Share /></el-icon>
+          {{ currentRepostsCount }}
+        </el-button>
       </div>
     </div>
     
@@ -193,13 +179,6 @@
       :post="post"
       @reposted="handleRepostSuccess"
     />
-    
-    <!-- Share to Friend Dialog -->
-    <ShareToFriendDialog
-      v-model:visible="showShareDialog"
-      :post="post"
-      @shared="handleShareSuccess"
-    />
   </div>
 </template>
 
@@ -207,8 +186,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { 
-  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete,
-  ArrowDown, Refresh, ChatDotRound
+  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete
 } from '@element-plus/icons-vue'
 import { fromNow, getFileUrl } from '@/utils'
 import { useUserStore } from '@/stores/user'
@@ -216,7 +194,6 @@ import { deletePost, toggleLike, getComments, toggleRepost } from '@/api/posts'
 import CommentForm from './CommentForm.vue'
 import CommentList from './CommentList.vue'
 import RepostDialog from './RepostDialog.vue'
-import ShareToFriendDialog from './ShareToFriendDialog.vue'
 
 const props = defineProps({
   post: {
@@ -234,7 +211,6 @@ const repostLoading = ref(false)
 const commentsLoading = ref(false)
 const showComments = ref(false)
 const showRepostDialog = ref(false)
-const showShareDialog = ref(false)
 const comments = ref([])
 const commentsPage = ref(1)
 const hasMoreComments = ref(false)
@@ -344,22 +320,13 @@ const handleLike = async () => {
   }
 }
 
-// Share dropdown command handler
-const handleShareCommand = async (command) => {
+// Repost functionality
+const handleRepost = async () => {
   if (!userStore.isLoggedIn) {
-    ElMessage.warning('Please login to share')
+    ElMessage.warning('Please login to repost')
     return
   }
 
-  if (command === 'repost') {
-    await handleRepost()
-  } else if (command === 'share-to-friend') {
-    showShareDialog.value = true
-  }
-}
-
-// Repost functionality
-const handleRepost = async () => {
   const originalAuthorId = props.post.is_repost ? 
     props.post.original_user.id : 
     props.post.user_id
@@ -415,11 +382,6 @@ const handleRepostSuccess = (data) => {
     reposted: data.reposted, 
     reposts_count: data.reposts_count 
   })
-}
-
-const handleShareSuccess = (data) => {
-  console.log('Post shared successfully:', data)
-  // 这里可以添加其他成功后的处理逻辑
 }
 
 // Comment functionality
@@ -837,10 +799,11 @@ onMounted(() => {
       }
     }
     
-    &.share-button {
-      .dropdown-icon {
-        margin-left: 4px;
-        font-size: 12px;
+    &.reposted {
+      color: #67c23a;
+      
+      &:hover {
+        color: #85ce61;
       }
     }
   }
@@ -863,13 +826,6 @@ onMounted(() => {
   
   .el-icon {
     margin-right: 6px;
-  }
-}
-
-// 分享下拉菜单样式
-:deep(.el-dropdown-menu__item) {
-  .el-icon {
-    margin-right: 8px;
   }
 }
 

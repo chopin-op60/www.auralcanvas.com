@@ -2,7 +2,6 @@ const BaseController = require('./BaseController');
 const PostService = require('../services/PostService');
 const CommentService = require('../services/CommentService');
 const LikeService = require('../services/LikeService');
-const RepostService = require('../services/RepostService');
 
 class PostController extends BaseController {
     constructor() {
@@ -10,7 +9,6 @@ class PostController extends BaseController {
         this.postService = new PostService();
         this.commentService = new CommentService();
         this.likeService = new LikeService();
-        this.repostService = new RepostService();
     }
 
     // Create mixed-content post
@@ -48,7 +46,7 @@ class PostController extends BaseController {
         }
     });
 
-    // Get post list with like status and repost status for authenticated users
+    // Get post list with like status for authenticated users
     getPosts = this.handleAsync(async (req, res) => {
         const { page, limit, offset } = this.getPagination(req);
         const userId = req.query.user_id;
@@ -56,18 +54,14 @@ class PostController extends BaseController {
         try {
             const result = await this.postService.getPostsWithUserInfo(offset, limit, userId);
             
-            // If user is authenticated, get their interaction status
+            // If user is authenticated, get their like status for these posts
             if (req.user && req.user.id) {
                 const postIds = result.data.map(post => post.id);
-                const [likeStatuses, repostStatuses] = await Promise.all([
-                    this.likeService.getUserLikeStatusBatch(postIds, req.user.id),
-                    this.repostService.getUserRepostStatusBatch(postIds, req.user.id)
-                ]);
+                const likeStatuses = await this.likeService.getUserLikeStatusBatch(postIds, req.user.id);
                 
-                // Add interaction status to each post
+                // Add like status to each post
                 result.data.forEach(post => {
                     post.user_liked = likeStatuses[post.id] || false;
-                    post.user_reposted = repostStatuses[post.id] || false;
                 });
             }
             
@@ -97,15 +91,9 @@ class PostController extends BaseController {
                 return this.sendError(res, 'Post not found', 404);
             }
 
-            // Add interaction status if user is authenticated
+            // Add like status if user is authenticated
             if (req.user && req.user.id) {
-                const [liked, reposted] = await Promise.all([
-                    this.likeService.getUserLikeStatus(id, req.user.id),
-                    this.repostService.getUserRepostStatus(req.user.id, id)
-                ]);
-                
-                post.user_liked = liked;
-                post.user_reposted = reposted;
+                post.user_liked = await this.likeService.getUserLikeStatus(id, req.user.id);
             }
 
             this.sendSuccess(res, post, 'Post details retrieved successfully');
@@ -144,7 +132,7 @@ class PostController extends BaseController {
         }
     });
 
-    // 点赞/取消点赞
+    // 点赞/取消点赞 - 使用新的LikeService
     toggleLike = this.handleAsync(async (req, res) => {
         const { id } = req.params;
 
@@ -154,41 +142,6 @@ class PostController extends BaseController {
         } catch (error) {
             console.error('Toggle like error:', error);
             this.sendError(res, 'Operation failed', 500, error.message);
-        }
-    });
-
-    // 转发/取消转发
-    toggleRepost = this.handleAsync(async (req, res) => {
-        const { id } = req.params;
-        const { comment } = req.body;
-
-        try {
-            // 检查是否已经转发
-            const alreadyReposted = await this.repostService.getUserRepostStatus(req.user.id, id);
-            
-            let result;
-            if (alreadyReposted) {
-                // 取消转发
-                await this.repostService.deleteRepost(req.user.id, id);
-                result = { reposted: false };
-            } else {
-                // 创建转发
-                await this.repostService.createRepost(req.user.id, id, comment);
-                result = { reposted: true };
-            }
-
-            // 获取最新转发计数
-            const [countResult] = await this.repostService.db.execute(
-                'SELECT reposts_count FROM posts WHERE id = ?',
-                [id]
-            );
-            
-            result.reposts_count = countResult[0].reposts_count;
-
-            this.sendSuccess(res, result, result.reposted ? 'Post reposted successfully' : 'Repost removed successfully');
-        } catch (error) {
-            console.error('Toggle repost error:', error);
-            this.sendError(res, error.message, 400);
         }
     });
 
@@ -216,31 +169,7 @@ class PostController extends BaseController {
         }
     });
 
-    // 获取帖子转发列表
-    getPostReposts = this.handleAsync(async (req, res) => {
-        const { id } = req.params;
-        const { page, limit, offset } = this.getPagination(req);
-
-        try {
-            const result = await this.repostService.getPostReposts(id, offset, limit);
-            
-            const response = {
-                reposts: result.data,
-                pagination: {
-                    page,
-                    limit,
-                    total: result.total,
-                    totalPages: Math.ceil(result.total / limit)
-                }
-            };
-
-            this.sendSuccess(res, response, 'Post reposts retrieved successfully');
-        } catch (error) {
-            this.sendError(res, 'Failed to retrieve post reposts', 500, error.message);
-        }
-    });
-
-    // Comment methods
+    // Comment methods - 完善评论功能
     getComments = this.handleAsync(async (req, res) => {
         const { id } = req.params;
         const { page, limit, offset } = this.getPagination(req);

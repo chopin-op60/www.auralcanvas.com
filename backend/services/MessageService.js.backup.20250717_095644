@@ -21,7 +21,6 @@ class MessageService extends BaseService {
                     u.avatar as other_user_avatar,
                     u.bio as other_user_bio,
                     m.content as last_message,
-                    m.message_type as last_message_type,
                     COUNT(unread_m.id) as unread_count
                 FROM conversations c
                 JOIN users u ON (
@@ -36,7 +35,7 @@ class MessageService extends BaseService {
                     AND unread_m.receiver_id = ? 
                     AND unread_m.is_read = FALSE
                 WHERE c.user1_id = ? OR c.user2_id = ?
-                GROUP BY c.id, u.id, m.content, m.message_type
+                GROUP BY c.id, u.id, m.content
                 ORDER BY c.last_message_at DESC
             `;
             
@@ -47,7 +46,6 @@ class MessageService extends BaseService {
                 last_message_at: row.last_message_at,
                 created_at: row.created_at,
                 last_message: row.last_message,
-                last_message_type: row.last_message_type,
                 unread_count: row.unread_count,
                 other_user: {
                     id: row.other_user_id,
@@ -65,7 +63,7 @@ class MessageService extends BaseService {
         }
     }
 
-    // 获取对话中的消息 - 包含帖子分享
+    // 获取对话中的消息 - 修复LIMIT参数问题
     async getConversationMessages(conversationId, offset = 0, limit = 50) {
         try {
             const safeConversationId = parseInt(conversationId);
@@ -74,6 +72,7 @@ class MessageService extends BaseService {
             
             console.log('Getting messages for conversation:', { safeConversationId, safeOffset, safeLimit });
             
+            // 使用字符串拼接避免LIMIT参数问题
             const query = `
                 SELECT 
                     m.id,
@@ -82,25 +81,12 @@ class MessageService extends BaseService {
                     m.receiver_id,
                     m.content,
                     m.message_type,
-                    m.referenced_post_id,
                     m.is_read,
                     m.created_at,
                     u.username as sender_username,
-                    u.avatar as sender_avatar,
-                    p.id as post_id,
-                    p.title as post_title,
-                    p.description as post_description,
-                    p.content_text as post_content,
-                    p.likes_count as post_likes,
-                    p.comments_count as post_comments,
-                    p.reposts_count as post_reposts,
-                    p.created_at as post_created_at,
-                    pu.username as post_author_username,
-                    pu.avatar as post_author_avatar
+                    u.avatar as sender_avatar
                 FROM messages m
                 JOIN users u ON m.sender_id = u.id
-                LEFT JOIN posts p ON m.referenced_post_id = p.id
-                LEFT JOIN users pu ON p.user_id = pu.id
                 WHERE m.conversation_id = ?
                 ORDER BY m.created_at ASC
                 LIMIT ${safeLimit}
@@ -109,50 +95,13 @@ class MessageService extends BaseService {
             console.log('Executing messages query:', query);
             const [messages] = await this.db.execute(query, [safeConversationId]);
             
-            // 处理消息数据，分离帖子信息
-            const processedMessages = messages.map(msg => {
-                const message = {
-                    id: msg.id,
-                    conversation_id: msg.conversation_id,
-                    sender_id: msg.sender_id,
-                    receiver_id: msg.receiver_id,
-                    content: msg.content,
-                    message_type: msg.message_type,
-                    referenced_post_id: msg.referenced_post_id,
-                    is_read: msg.is_read,
-                    created_at: msg.created_at,
-                    sender_username: msg.sender_username,
-                    sender_avatar: msg.sender_avatar
-                };
-
-                // 如果是帖子分享，添加帖子信息
-                if (msg.message_type === 'post_share' && msg.post_id) {
-                    message.shared_post = {
-                        id: msg.post_id,
-                        title: msg.post_title,
-                        description: msg.post_description,
-                        content_text: msg.post_content,
-                        likes_count: msg.post_likes,
-                        comments_count: msg.post_comments,
-                        reposts_count: msg.post_reposts,
-                        created_at: msg.post_created_at,
-                        author: {
-                            username: msg.post_author_username,
-                            avatar: msg.post_author_avatar
-                        }
-                    };
-                }
-
-                return message;
-            });
-            
             const countQuery = 'SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?';
             const [countResult] = await this.db.execute(countQuery, [safeConversationId]);
             
-            console.log('Found messages:', processedMessages.length, 'Total:', countResult[0].total);
+            console.log('Found messages:', messages.length, 'Total:', countResult[0].total);
             
             return {
-                data: processedMessages,
+                data: messages,
                 total: countResult[0].total
             };
         } catch (error) {
@@ -161,14 +110,14 @@ class MessageService extends BaseService {
         }
     }
 
-    // 发送普通消息
+    // 发送消息
     async sendMessage({ conversationId, senderId, receiverId, content, messageType = 'text' }) {
         try {
             const safeConversationId = parseInt(conversationId);
             const safeSenderId = parseInt(senderId);
             const safeReceiverId = parseInt(receiverId);
             
-            console.log('Sending message:', { safeConversationId, safeSenderId, safeReceiverId, content, messageType });
+            console.log('Sending message:', { safeConversationId, safeSenderId, safeReceiverId, content });
             
             // 验证对话存在
             const [conversation] = await this.db.execute(
@@ -210,114 +159,6 @@ class MessageService extends BaseService {
         } catch (error) {
             console.error('Error in sendMessage:', error);
             throw new Error(`Failed to send message: ${error.message}`);
-        }
-    }
-
-    // 分享帖子到对话
-    async sharePostToConversation({ conversationId, senderId, receiverId, postId, comment = null }) {
-        try {
-            const safeConversationId = parseInt(conversationId);
-            const safeSenderId = parseInt(senderId);
-            const safeReceiverId = parseInt(receiverId);
-            const safePostId = parseInt(postId);
-            
-            console.log('Sharing post to conversation:', { 
-                safeConversationId, 
-                safeSenderId, 
-                safeReceiverId, 
-                safePostId, 
-                comment 
-            });
-            
-            // 验证帖子存在且未被删除
-            const [post] = await this.db.execute(
-                'SELECT id, title FROM posts WHERE id = ?',
-                [safePostId]
-            );
-            
-            if (post.length === 0) {
-                throw new Error('Post not found or has been deleted');
-            }
-
-            // 验证对话存在
-            const [conversation] = await this.db.execute(
-                'SELECT * FROM conversations WHERE id = ?',
-                [safeConversationId]
-            );
-            
-            if (conversation.length === 0) {
-                throw new Error('Conversation not found');
-            }
-
-            // 确定接收者ID
-            const conv = conversation[0];
-            const actualReceiverId = safeReceiverId || (conv.user1_id === safeSenderId ? conv.user2_id : conv.user1_id);
-
-            // 创建帖子分享消息
-            const content = comment ? comment.trim() : `Shared a post: ${post[0].title}`;
-            
-            const message = await this.create({
-                conversation_id: safeConversationId,
-                sender_id: safeSenderId,
-                receiver_id: actualReceiverId,
-                content: content,
-                message_type: 'post_share',
-                referenced_post_id: safePostId,
-                is_read: false
-            });
-
-            console.log('Post share message created:', message.id);
-
-            // 更新对话的最后消息时间
-            await this.db.execute(
-                'UPDATE conversations SET last_message_at = NOW() WHERE id = ?',
-                [safeConversationId]
-            );
-
-            // 获取完整的消息信息（包含帖子详情）
-            const [fullMessage] = await this.db.execute(
-                `SELECT 
-                    m.*,
-                    u.username as sender_username,
-                    u.avatar as sender_avatar,
-                    p.title as post_title,
-                    p.description as post_description,
-                    p.content_text as post_content,
-                    p.likes_count as post_likes,
-                    p.comments_count as post_comments,
-                    p.reposts_count as post_reposts,
-                    p.created_at as post_created_at,
-                    pu.username as post_author_username,
-                    pu.avatar as post_author_avatar
-                FROM messages m
-                JOIN users u ON m.sender_id = u.id
-                JOIN posts p ON m.referenced_post_id = p.id
-                JOIN users pu ON p.user_id = pu.id
-                WHERE m.id = ?`,
-                [message.id]
-            );
-
-            const result = fullMessage[0];
-            result.shared_post = {
-                id: safePostId,
-                title: result.post_title,
-                description: result.post_description,
-                content_text: result.post_content,
-                likes_count: result.post_likes,
-                comments_count: result.post_comments,
-                reposts_count: result.post_reposts,
-                created_at: result.post_created_at,
-                author: {
-                    username: result.post_author_username,
-                    avatar: result.post_author_avatar
-                }
-            };
-
-            console.log('Post shared successfully to conversation');
-            return result;
-        } catch (error) {
-            console.error('Error in sharePostToConversation:', error);
-            throw new Error(`Failed to share post: ${error.message}`);
         }
     }
 

@@ -1,170 +1,120 @@
 <template>
   <div class="post-card">
-    <!-- 转发标识 -->
-    <div v-if="post.is_repost" class="repost-header">
-      <el-icon><Share /></el-icon>
-      <span>
-        <router-link 
-          :to="`/user/${post.repost_user.id}`" 
-          class="repost-user-link"
-        >
-          {{ post.repost_user.username }}
-        </router-link>
-        reposted
-      </span>
-      <span class="repost-time">{{ fromNow(post.reposted_at) }}</span>
-    </div>
-    
-    <!-- 转发评论 -->
-    <div v-if="post.is_repost && post.repost_comment" class="repost-comment">
-      <div class="repost-comment-content">
-        <el-avatar 
-          :src="getFileUrl(post.repost_user.avatar)" 
-          :size="32"
-        >
+    <div class="post-header">
+      <div class="user-info">
+        <el-avatar :src="getFileUrl(post.user_avatar)" :size="40">
           <el-icon><User /></el-icon>
         </el-avatar>
-        <div class="comment-text">{{ post.repost_comment }}</div>
-      </div>
-    </div>
-    
-    <!-- 原帖内容区域 -->
-    <div class="original-post" :class="{ 'is-repost': post.is_repost }">
-      <div class="post-header">
-        <div class="user-info">
-          <el-avatar 
-            :src="getFileUrl(post.is_repost ? post.original_user.avatar : post.user_avatar)" 
-            :size="40"
-          >
-            <el-icon><User /></el-icon>
-          </el-avatar>
-          <div class="user-details">
-            <div class="username">
-              {{ post.is_repost ? post.original_user.username : post.username }}
-            </div>
-            <div class="time">{{ fromNow(post.created_at) }}</div>
-          </div>
-        </div>
-        
-        <!-- 作者操作菜单 -->
-        <div v-if="canDelete" class="post-menu">
-          <el-dropdown trigger="click" @command="handleCommand">
-            <el-button text circle>
-              <el-icon><MoreFilled /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="delete" class="delete-item">
-                  <el-icon><Delete /></el-icon>
-                  Delete Post
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+        <div class="user-details">
+          <div class="username">{{ post.username }}</div>
+          <div class="time">{{ fromNow(post.created_at) }}</div>
         </div>
       </div>
       
-      <div class="post-content">
-        <h3 class="post-title">{{ post.title }}</h3>
-        <p v-if="post.description" class="post-description">{{ post.description }}</p>
-        
-        <!-- Text Content -->
-        <div v-if="post.content_text" class="post-text">
-          <p>{{ post.content_text }}</p>
-        </div>
-        
-        <!-- Mixed Media Content -->
-        <div v-if="post.media && post.media.length > 0" class="post-media">
-          
-          <!-- Images Section - Smart scaling -->
-          <div v-if="imageFiles.length > 0" class="images-section">
-            <div class="images-grid" :class="getImageGridClass()">
-              <div 
-                v-for="(media, index) in imageFiles" 
-                :key="media.id" 
-                class="image-item"
-              >
-                <el-image 
-                  :src="getFileUrl(media.file_path)" 
-                  fit="contain"
-                  :preview-src-list="getImageUrls()"
-                  :initial-index="index"
-                  preview-teleported
-                  class="media-image"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <!-- Audio Files Section - Clean and minimal -->
-          <div v-if="audioFiles.length > 0" class="audio-section">
-            <div class="audio-list">
-              <div 
-                v-for="media in audioFiles" 
-                :key="media.id" 
-                class="audio-item"
-              >
-                <audio 
-                  :src="getFileUrl(media.file_path)" 
-                  controls 
-                  class="audio-player"
-                  preload="metadata"
-                >
-                  Your browser does not support audio playback.
-                </audio>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Post Actions -->
-      <div class="post-actions">
-        <el-button 
-          text 
-          @click="handleLike"
-          :loading="likeLoading"
-          :class="{ 'liked': isLiked }"
-          class="action-button like-button"
-        >
-          <el-icon><StarFilled /></el-icon>
-          {{ currentLikesCount }}
-        </el-button>
-        
-        <el-button 
-          text 
-          @click="handleComment"
-          class="action-button comment-button"
-        >
-          <el-icon><ChatDotSquare /></el-icon>
-          {{ currentCommentsCount }}
-        </el-button>
-        
-        <!-- 分享按钮下拉菜单 -->
-        <el-dropdown trigger="click" @command="handleShareCommand">
-          <el-button 
-            text 
-            class="action-button share-button"
-            :loading="repostLoading"
-          >
-            <el-icon><Share /></el-icon>
-            {{ currentRepostsCount }}
-            <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
+      <!-- 作者操作菜单 -->
+      <div v-if="canDelete" class="post-menu">
+        <el-dropdown trigger="click" @command="handleCommand">
+          <el-button text circle>
+            <el-icon><MoreFilled /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="repost">
-                <el-icon><Refresh /></el-icon>
-                {{ isReposted ? 'Remove Repost' : 'Repost' }}
-              </el-dropdown-item>
-              <el-dropdown-item command="share-to-friend">
-                <el-icon><ChatDotRound /></el-icon>
-                Share to Friend
+              <el-dropdown-item command="delete" class="delete-item">
+                <el-icon><Delete /></el-icon>
+                Delete Post
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
+    </div>
+    
+    <div class="post-content">
+      <h3 class="post-title">{{ post.title }}</h3>
+      <p v-if="post.description" class="post-description">{{ post.description }}</p>
+      
+      <!-- Text Content -->
+      <div v-if="post.content_text" class="post-text">
+        <p>{{ post.content_text }}</p>
+      </div>
+      
+      <!-- Mixed Media Content -->
+      <div v-if="post.media && post.media.length > 0" class="post-media">
+        
+        <!-- Images Section - Smart scaling -->
+        <div v-if="imageFiles.length > 0" class="images-section">
+          <div class="images-grid" :class="getImageGridClass()">
+            <div 
+              v-for="(media, index) in imageFiles" 
+              :key="media.id" 
+              class="image-item"
+            >
+              <el-image 
+                :src="getFileUrl(media.file_path)" 
+                fit="contain"
+                :preview-src-list="getImageUrls()"
+                :initial-index="index"
+                preview-teleported
+                class="media-image"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <!-- Audio Files Section - Clean and minimal -->
+        <div v-if="audioFiles.length > 0" class="audio-section">
+          <div class="audio-list">
+            <div 
+              v-for="media in audioFiles" 
+              :key="media.id" 
+              class="audio-item"
+            >
+              <audio 
+                :src="getFileUrl(media.file_path)" 
+                controls 
+                class="audio-player"
+                preload="metadata"
+              >
+                Your browser does not support audio playback.
+              </audio>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Post Actions -->
+    <div class="post-actions">
+      <el-button 
+        text 
+        @click="handleLike"
+        :loading="likeLoading"
+        :class="{ 'liked': isLiked }"
+        class="action-button like-button"
+      >
+        <el-icon><StarFilled /></el-icon>
+        {{ currentLikesCount }}
+      </el-button>
+      
+      <el-button 
+        text 
+        @click="handleComment"
+        class="action-button comment-button"
+      >
+        <el-icon><ChatDotSquare /></el-icon>
+        {{ currentCommentsCount }}
+      </el-button>
+      
+      <el-button 
+        text 
+        @click="handleRepost"
+        :loading="repostLoading"
+        :class="{ 'reposted': isReposted }"
+        class="action-button repost-button"
+      >
+        <el-icon><Share /></el-icon>
+        {{ currentRepostsCount }}
+      </el-button>
     </div>
     
     <!-- Comments Section -->
@@ -173,7 +123,7 @@
       <CommentForm 
         v-if="userStore.isLoggedIn"
         :post-id="post.id"
-        :username="post.is_repost ? post.original_user.username : post.username"
+        :username="post.username"
         @comment-added="handleCommentAdded"
       />
       
@@ -193,13 +143,6 @@
       :post="post"
       @reposted="handleRepostSuccess"
     />
-    
-    <!-- Share to Friend Dialog -->
-    <ShareToFriendDialog
-      v-model:visible="showShareDialog"
-      :post="post"
-      @shared="handleShareSuccess"
-    />
   </div>
 </template>
 
@@ -207,8 +150,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { 
-  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete,
-  ArrowDown, Refresh, ChatDotRound
+  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete
 } from '@element-plus/icons-vue'
 import { fromNow, getFileUrl } from '@/utils'
 import { useUserStore } from '@/stores/user'
@@ -216,7 +158,6 @@ import { deletePost, toggleLike, getComments, toggleRepost } from '@/api/posts'
 import CommentForm from './CommentForm.vue'
 import CommentList from './CommentList.vue'
 import RepostDialog from './RepostDialog.vue'
-import ShareToFriendDialog from './ShareToFriendDialog.vue'
 
 const props = defineProps({
   post: {
@@ -234,7 +175,6 @@ const repostLoading = ref(false)
 const commentsLoading = ref(false)
 const showComments = ref(false)
 const showRepostDialog = ref(false)
-const showShareDialog = ref(false)
 const comments = ref([])
 const commentsPage = ref(1)
 const hasMoreComments = ref(false)
@@ -243,8 +183,7 @@ const hasMoreComments = ref(false)
 const canDelete = computed(() => {
   return userStore.isLoggedIn && 
          userStore.userId && 
-         (props.post.user_id === userStore.userId || 
-          (props.post.is_repost && props.post.repost_user?.id === userStore.userId))
+         props.post.user_id === userStore.userId
 })
 
 const isLiked = ref(props.post.user_liked || false)
@@ -344,27 +283,14 @@ const handleLike = async () => {
   }
 }
 
-// Share dropdown command handler
-const handleShareCommand = async (command) => {
+// Repost functionality
+const handleRepost = async () => {
   if (!userStore.isLoggedIn) {
-    ElMessage.warning('Please login to share')
+    ElMessage.warning('Please login to repost')
     return
   }
 
-  if (command === 'repost') {
-    await handleRepost()
-  } else if (command === 'share-to-friend') {
-    showShareDialog.value = true
-  }
-}
-
-// Repost functionality
-const handleRepost = async () => {
-  const originalAuthorId = props.post.is_repost ? 
-    props.post.original_user.id : 
-    props.post.user_id
-
-  if (originalAuthorId === userStore.userId) {
+  if (props.post.user_id === userStore.userId) {
     ElMessage.warning("You can't repost your own post")
     return
   }
@@ -415,11 +341,6 @@ const handleRepostSuccess = (data) => {
     reposted: data.reposted, 
     reposts_count: data.reposts_count 
   })
-}
-
-const handleShareSuccess = (data) => {
-  console.log('Post shared successfully:', data)
-  // 这里可以添加其他成功后的处理逻辑
 }
 
 // Comment functionality
@@ -537,71 +458,6 @@ onMounted(() => {
   }
 }
 
-// 转发标识样式
-.repost-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #909399;
-  font-size: 14px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f5f7fa;
-  
-  .el-icon {
-    color: #67c23a;
-    font-size: 16px;
-  }
-  
-  .repost-user-link {
-    color: #409EFF;
-    text-decoration: none;
-    font-weight: 600;
-    
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-  
-  .repost-time {
-    color: #c0c4cc;
-    font-size: 12px;
-    margin-left: auto;
-  }
-}
-
-// 转发评论样式
-.repost-comment {
-  margin-bottom: 16px;
-  
-  .repost-comment-content {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    background: #f8f9fa;
-    padding: 12px;
-    border-radius: 8px;
-    
-    .comment-text {
-      flex: 1;
-      color: #303133;
-      font-size: 14px;
-      line-height: 1.5;
-      margin-top: 2px;
-    }
-  }
-}
-
-// 原帖样式
-.original-post {
-  &.is-repost {
-    border: 1px solid #e4e7ed;
-    border-radius: 8px;
-    padding: 16px;
-    background: #fafbfc;
-  }
-}
-
 .post-header {
   display: flex;
   justify-content: space-between;
@@ -661,11 +517,6 @@ onMounted(() => {
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 15px;
-    
-    .original-post.is-repost & {
-      background: white;
-      border: 1px solid #e4e7ed;
-    }
     
     p {
       color: #303133;
@@ -837,10 +688,11 @@ onMounted(() => {
       }
     }
     
-    &.share-button {
-      .dropdown-icon {
-        margin-left: 4px;
-        font-size: 12px;
+    &.reposted {
+      color: #67c23a;
+      
+      &:hover {
+        color: #85ce61;
       }
     }
   }
@@ -866,25 +718,10 @@ onMounted(() => {
   }
 }
 
-// 分享下拉菜单样式
-:deep(.el-dropdown-menu__item) {
-  .el-icon {
-    margin-right: 8px;
-  }
-}
-
 // 响应式设计
 @media (max-width: 768px) {
   .post-card {
     padding: 15px;
-  }
-  
-  .original-post.is-repost {
-    padding: 12px !important;
-  }
-  
-  .repost-comment .repost-comment-content {
-    padding: 10px !important;
   }
   
   .post-content .post-media {

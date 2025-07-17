@@ -6,25 +6,17 @@ const auth = require('../middleware/auth');
 // All message routes require authentication
 router.use(auth);
 
-// Test route
-router.get('/test', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Messages API is ready!',
-        data: { message: 'Real-time messaging system' },
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Conversation routes
+// 对话管理
 router.get('/conversations', MessageController.getConversations);
-router.post('/conversations/create', MessageController.createOrGetConversation);
-router.get('/conversations/:conversationId/messages', MessageController.getConversationMessages);
-router.put('/conversations/:conversationId/read', MessageController.markConversationAsRead);
+router.post('/conversations', MessageController.createConversation);
 
-// Message routes
-router.post('/send', MessageController.sendMessage);
-router.put('/:messageId/read', MessageController.markMessageAsRead);
+// 消息管理
+router.get('/conversations/:conversationId/messages', MessageController.getMessages);
+router.post('/conversations/:conversationId/messages', MessageController.sendMessage);
+router.post('/conversations/:conversationId/share-post', MessageController.sharePost);
+router.put('/conversations/:conversationId/read', MessageController.markAsRead);
+
+// 未读数量
 router.get('/unread-count', MessageController.getUnreadCount);
 
 module.exports = router;

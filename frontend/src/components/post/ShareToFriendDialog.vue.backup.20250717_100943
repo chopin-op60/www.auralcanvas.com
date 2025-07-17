@@ -1,0 +1,422 @@
+<template>
+  <el-dialog
+    :model-value="visible"
+    @update:model-value="$emit('update:visible', $event)"
+    title="Share to friend"
+    width="500px"
+    :before-close="handleClose"
+    class="share-dialog"
+  >
+    <div class="share-content">
+      <!-- 好友列表 -->
+      <div class="friends-section">
+        <div class="section-title">Choose a friend to share with:</div>
+        
+        <div v-if="friendsLoading" class="loading">
+          <el-skeleton :rows="3" animated />
+        </div>
+        
+        <div v-else-if="friends.length === 0" class="no-friends">
+          <el-empty description="No friends available" />
+        </div>
+        
+        <div v-else class="friends-list">
+          <div 
+            v-for="friend in friends" 
+            :key="friend.id"
+            class="friend-item"
+            :class="{ 'selected': selectedFriend?.id === friend.id }"
+            @click="selectFriend(friend)"
+          >
+            <el-avatar :src="getFileUrl(friend.avatar)" :size="40">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="friend-info">
+              <div class="username">{{ friend.username }}</div>
+              <div class="bio">{{ friend.bio || 'No bio available' }}</div>
+            </div>
+            <el-icon v-if="selectedFriend?.id === friend.id" class="check-icon">
+              <Check />
+            </el-icon>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 分享评论 -->
+      <div v-if="selectedFriend" class="comment-section">
+        <div class="section-title">Add a message (optional):</div>
+        <el-input
+          v-model="shareComment"
+          type="textarea"
+          :rows="3"
+          :placeholder="`Say something to ${selectedFriend.username}...`"
+          maxlength="500"
+          show-word-limit
+          resize="none"
+        />
+      </div>
+      
+      <!-- 帖子预览 -->
+      <div class="post-preview">
+        <div class="preview-title">
+          <el-icon><Share /></el-icon>
+          Sharing post
+        </div>
+        <div class="post-card">
+          <div class="post-info">
+            <el-avatar :src="getFileUrl(post.user_avatar)" :size="32">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="post-meta">
+              <span class="author">{{ post.username }}</span>
+              <span class="time">{{ fromNow(post.created_at) }}</span>
+            </div>
+          </div>
+          <div class="post-title">{{ post.title }}</div>
+          <div v-if="post.description" class="post-desc">
+            {{ truncateText(post.description, 100) }}
+          </div>
+          <div v-if="post.media && post.media.length > 0" class="media-info">
+            <span v-if="imageCount > 0">
+              <el-icon><Picture /></el-icon>
+              {{ imageCount }} image{{ imageCount > 1 ? 's' : '' }}
+            </span>
+            <span v-if="audioCount > 0">
+              <el-icon><VideoPlay /></el-icon>
+              {{ audioCount }} audio
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="handleClose">Cancel</el-button>
+        <el-button 
+          type="primary" 
+          @click="handleShare"
+          :loading="sharing"
+          :disabled="!selectedFriend"
+        >
+          <el-icon><Share /></el-icon>
+          Share
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { 
+  User, Check, Share, Picture, VideoPlay 
+} from '@element-plus/icons-vue'
+import { getFileUrl, fromNow, truncateText } from '@/utils'
+import { getFriends } from '@/api/friends'
+import { createOrGetConversation, sharePostToConversation } from '@/api/messages'
+
+const props = defineProps({
+  visible: {
+    type: Boolean,
+    default: false
+  },
+  post: {
+    type: Object,
+    required: true
+  }
+})
+
+const emit = defineEmits(['update:visible', 'shared'])
+
+const friends = ref([])
+const friendsLoading = ref(false)
+const selectedFriend = ref(null)
+const shareComment = ref('')
+const sharing = ref(false)
+
+// 计算媒体文件数量
+const imageCount = computed(() => {
+  return props.post.media?.filter(m => m.media_type === 'image').length || 0
+})
+
+const audioCount = computed(() => {
+  return props.post.media?.filter(m => m.media_type === 'audio').length || 0
+})
+
+// 监听对话框打开，加载好友列表
+watch(() => props.visible, (visible) => {
+  if (visible) {
+    loadFriends()
+  }
+})
+
+const loadFriends = async () => {
+  friendsLoading.value = true
+  try {
+    const response = await getFriends()
+    friends.value = response.data || []
+    console.log('Loaded friends for sharing:', friends.value.length)
+  } catch (error) {
+    console.error('Failed to load friends:', error)
+    ElMessage.error('Failed to load friends list')
+  } finally {
+    friendsLoading.value = false
+  }
+}
+
+const selectFriend = (friend) => {
+  selectedFriend.value = friend
+  console.log('Selected friend:', friend.username)
+}
+
+const handleClose = () => {
+  emit('update:visible', false)
+  selectedFriend.value = null
+  shareComment.value = ''
+}
+
+const handleShare = async () => {
+  if (!selectedFriend.value) {
+    ElMessage.warning('Please select a friend to share with')
+    return
+  }
+
+  sharing.value = true
+  
+  try {
+    console.log('Sharing post to friend:', selectedFriend.value.username)
+    
+    // 创建或获取对话
+    const conversationResponse = await createOrGetConversation(selectedFriend.value.id)
+    const conversation = conversationResponse.data.conversation
+    
+    console.log('Got conversation:', conversation.id)
+    
+    // 分享帖子到对话
+    await sharePostToConversation(conversation.id, {
+      postId: props.post.id,
+      comment: shareComment.value.trim() || null,
+      receiverId: selectedFriend.value.id
+    })
+    
+    ElMessage.success(`Post shared with ${selectedFriend.value.username}!`)
+    
+    emit('shared', {
+      friend: selectedFriend.value,
+      conversation: conversation,
+      comment: shareComment.value.trim()
+    })
+    
+    handleClose()
+  } catch (error) {
+    console.error('Failed to share post:', error)
+    ElMessage.error(error.response?.data?.message || 'Failed to share post')
+  } finally {
+    sharing.value = false
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.share-dialog {
+  :deep(.el-dialog__header) {
+    padding: 20px 20px 10px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  
+  .share-content {
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 12px;
+    }
+    
+    .friends-section {
+      margin-bottom: 20px;
+      
+      .loading {
+        padding: 20px 0;
+      }
+      
+      .no-friends {
+        text-align: center;
+        padding: 20px;
+      }
+      
+      .friends-list {
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #e4e7ed;
+        border-radius: 8px;
+        
+        .friend-item {
+          display: flex;
+          align-items: center;
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: all 0.3s;
+          border-bottom: 1px solid #f5f7fa;
+          
+          &:last-child {
+            border-bottom: none;
+          }
+          
+          &:hover {
+            background: #f8f9fa;
+          }
+          
+          &.selected {
+            background: #e6f7ff;
+            border-color: #409EFF;
+          }
+          
+          .friend-info {
+            flex: 1;
+            margin-left: 12px;
+            
+            .username {
+              font-weight: 600;
+              color: #303133;
+              font-size: 14px;
+            }
+            
+            .bio {
+              color: #909399;
+              font-size: 12px;
+              margin-top: 2px;
+            }
+          }
+          
+          .check-icon {
+            color: #409EFF;
+            font-size: 18px;
+          }
+        }
+      }
+    }
+    
+    .comment-section {
+      margin-bottom: 20px;
+      
+      .el-textarea {
+        :deep(.el-textarea__inner) {
+          resize: none;
+          border-radius: 8px;
+        }
+      }
+    }
+    
+    .post-preview {
+      .preview-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        color: #909399;
+        font-size: 14px;
+        
+        .el-icon {
+          color: #409EFF;
+        }
+      }
+      
+      .post-card {
+        border: 1px solid #e4e7ed;
+        border-radius: 8px;
+        padding: 16px;
+        background: #fafbfc;
+        
+        .post-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          
+          .post-meta {
+            .author {
+              font-weight: 600;
+              color: #303133;
+              font-size: 13px;
+            }
+            
+            .time {
+              color: #909399;
+              font-size: 12px;
+              margin-left: 8px;
+            }
+          }
+        }
+        
+        .post-title {
+          font-size: 15px;
+          font-weight: 600;
+          color: #303133;
+          margin-bottom: 8px;
+        }
+        
+        .post-desc {
+          font-size: 13px;
+          color: #606266;
+          margin-bottom: 8px;
+          line-height: 1.4;
+        }
+        
+        .media-info {
+          display: flex;
+          gap: 16px;
+          
+          span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #909399;
+            font-size: 12px;
+            
+            .el-icon {
+              font-size: 14px;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  .dialog-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    
+    .el-button .el-icon {
+      margin-right: 6px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .share-dialog {
+    :deep(.el-dialog) {
+      width: 95% !important;
+      margin: 5vh auto;
+    }
+    
+    .friends-section .friends-list {
+      max-height: 200px;
+    }
+    
+    .post-card {
+      padding: 12px !important;
+    }
+  }
+}
+</style>

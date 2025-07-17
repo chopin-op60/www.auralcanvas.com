@@ -63,24 +63,6 @@ export function getPostLikes(postId, params) {
   })
 }
 
-// 转发/取消转发
-export function toggleRepost(id, data = {}) {
-  return request({
-    url: `/posts/${id}/repost`,
-    method: 'post',
-    data
-  })
-}
-
-// 获取帖子转发列表
-export function getPostReposts(postId, params) {
-  return request({
-    url: `/posts/${postId}/reposts`,
-    method: 'get',
-    params
-  })
-}
-
 // 获取评论列表
 export function getComments(postId, params) {
   return request({

@@ -37,9 +37,79 @@
           class="message-item"
           :class="{ 'own-message': message.sender_id === userStore.userId }"
         >
-          <div class="message-bubble">
+          <!-- 普通文本消息 -->
+          <div v-if="message.message_type === 'text'" class="message-bubble">
             <p class="message-content">{{ message.content }}</p>
             <span class="message-time">{{ formatDate(message.created_at, 'HH:mm') }}</span>
+          </div>
+          
+          <!-- 帖子分享消息 -->
+          <div v-else-if="message.message_type === 'post_share'" class="post-share-message">
+            <!-- 分享者评论（如果有） -->
+            <div v-if="message.content && message.content.trim()" class="share-comment">
+              <div class="comment-bubble">
+                <p class="comment-text">{{ message.content }}</p>
+                <span class="comment-time">{{ formatDate(message.created_at, 'HH:mm') }}</span>
+              </div>
+            </div>
+            
+            <!-- 帖子卡片 -->
+            <div class="shared-post-card" @click="goToPost(message.shared_post?.id)">
+              <div v-if="message.shared_post" class="post-content">
+                <!-- 帖子作者信息 -->
+                <div class="post-author">
+                  <el-avatar :src="getFileUrl(message.shared_post.author?.avatar)" :size="24">
+                    <el-icon><User /></el-icon>
+                  </el-avatar>
+                  <span class="author-name">{{ message.shared_post.author?.username }}</span>
+                  <span class="post-time">{{ fromNow(message.shared_post.created_at) }}</span>
+                </div>
+                
+                <!-- 帖子内容 -->
+                <div class="post-body">
+                  <h4 class="post-title">{{ message.shared_post.title }}</h4>
+                  <p v-if="message.shared_post.description" class="post-description">
+                    {{ truncateText(message.shared_post.description, 120) }}
+                  </p>
+                  <p v-if="message.shared_post.content_text" class="post-text">
+                    {{ truncateText(message.shared_post.content_text, 100) }}
+                  </p>
+                </div>
+                
+                <!-- 帖子统计 -->
+                <div class="post-stats">
+                  <span class="stat">
+                    <el-icon><StarFilled /></el-icon>
+                    {{ message.shared_post.likes_count || 0 }}
+                  </span>
+                  <span class="stat">
+                    <el-icon><ChatDotSquare /></el-icon>
+                    {{ message.shared_post.comments_count || 0 }}
+                  </span>
+                  <span class="stat">
+                    <el-icon><Share /></el-icon>
+                    {{ message.shared_post.reposts_count || 0 }}
+                  </span>
+                </div>
+                
+                <!-- 查看提示 -->
+                <div class="view-hint">
+                  <el-icon><View /></el-icon>
+                  Click to view full post
+                </div>
+              </div>
+              
+              <!-- 帖子不存在或被删除 -->
+              <div v-else class="post-deleted">
+                <el-icon><WarningFilled /></el-icon>
+                <span>This post is no longer available</span>
+              </div>
+            </div>
+            
+            <!-- 分享时间 -->
+            <div class="share-meta">
+              <span class="share-time">{{ formatDate(message.created_at, 'HH:mm') }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -70,13 +140,18 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Promotion } from '@element-plus/icons-vue'
+import { 
+  User, Promotion, StarFilled, ChatDotSquare, Share, 
+  View, WarningFilled 
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getConversationMessages, sendMessage, markConversationAsRead } from '@/api/messages'
-import { getFileUrl, formatDate } from '@/utils'
+import { getFileUrl, formatDate, fromNow, truncateText } from '@/utils'
 
 const userStore = useUserStore()
+const router = useRouter()
 const messagesContainer = ref(null)
 
 const props = defineProps({
@@ -105,6 +180,9 @@ const loadMessages = async () => {
     const response = await getConversationMessages(props.conversationId)
     messages.value = response.data.messages || []
     
+    console.log('Loaded messages:', messages.value.length)
+    console.log('Messages with post_share:', messages.value.filter(m => m.message_type === 'post_share'))
+    
     // 标记对话为已读
     await markConversationAsRead(props.conversationId)
     
@@ -128,14 +206,13 @@ const handleSendMessage = async () => {
   sending.value = true
   
   try {
-    const response = await sendMessage({
-      conversationId: props.conversationId,
+    const response = await sendMessage(props.conversationId, {
       receiverId: props.conversation?.other_user?.id,
       content: messageContent
     })
     
     // 添加新消息到列表
-    messages.value.push(response.data.message)
+    messages.value.push(response.data)
     
     // 滚动到底部
     nextTick(() => {
@@ -162,6 +239,13 @@ const handleNewLine = (event) => {
   nextTick(() => {
     textarea.selectionStart = textarea.selectionEnd = start + 1
   })
+}
+
+const goToPost = (postId) => {
+  if (postId) {
+    console.log('Navigate to post:', postId)
+    router.push(`/post/${postId}`)
+  }
 }
 
 const scrollToBottom = () => {
@@ -241,16 +325,37 @@ onMounted(() => {
     .message-item {
       margin-bottom: 12px;
       display: flex;
+      flex-direction: column;
       
       &.own-message {
-        justify-content: flex-end;
+        align-items: flex-end;
         
         .message-bubble {
           background: #409EFF;
           color: white;
         }
+        
+        .comment-bubble {
+          background: #409EFF;
+          color: white;
+        }
+        
+        .shared-post-card {
+          margin-right: 0;
+          margin-left: 60px;
+        }
       }
       
+      &:not(.own-message) {
+        align-items: flex-start;
+        
+        .shared-post-card {
+          margin-left: 0;
+          margin-right: 60px;
+        }
+      }
+      
+      // 普通消息气泡
       .message-bubble {
         max-width: 70%;
         background: white;
@@ -269,6 +374,156 @@ onMounted(() => {
         .message-time {
           font-size: 11px;
           opacity: 0.7;
+        }
+      }
+      
+      // 帖子分享消息
+      .post-share-message {
+        max-width: 85%;
+        
+        .share-comment {
+          margin-bottom: 8px;
+          
+          .comment-bubble {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            
+            .comment-text {
+              margin: 0 0 2px 0;
+              font-size: 14px;
+              line-height: 1.4;
+            }
+            
+            .comment-time {
+              font-size: 11px;
+              opacity: 0.7;
+            }
+          }
+        }
+        
+        .shared-post-card {
+          background: white;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          overflow: hidden;
+          border: 1px solid #e4e7ed;
+          
+          &:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+          }
+          
+          .post-content {
+            padding: 16px;
+            
+            .post-author {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 12px;
+              
+              .author-name {
+                font-weight: 600;
+                color: #303133;
+                font-size: 13px;
+              }
+              
+              .post-time {
+                color: #909399;
+                font-size: 12px;
+                margin-left: auto;
+              }
+            }
+            
+            .post-body {
+              margin-bottom: 12px;
+              
+              .post-title {
+                margin: 0 0 6px 0;
+                font-size: 15px;
+                font-weight: 600;
+                color: #303133;
+                line-height: 1.3;
+              }
+              
+              .post-description {
+                margin: 0 0 6px 0;
+                font-size: 13px;
+                color: #606266;
+                line-height: 1.4;
+              }
+              
+              .post-text {
+                margin: 0;
+                font-size: 13px;
+                color: #303133;
+                line-height: 1.4;
+                background: #f8f9fa;
+                padding: 8px 10px;
+                border-radius: 6px;
+              }
+            }
+            
+            .post-stats {
+              display: flex;
+              gap: 16px;
+              margin-bottom: 8px;
+              padding-top: 8px;
+              border-top: 1px solid #f0f0f0;
+              
+              .stat {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                color: #909399;
+                font-size: 12px;
+                
+                .el-icon {
+                  font-size: 14px;
+                }
+              }
+            }
+            
+            .view-hint {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              color: #409EFF;
+              font-size: 12px;
+              font-weight: 500;
+              
+              .el-icon {
+                font-size: 14px;
+              }
+            }
+          }
+          
+          .post-deleted {
+            padding: 20px;
+            text-align: center;
+            color: #909399;
+            
+            .el-icon {
+              font-size: 24px;
+              margin-bottom: 8px;
+              color: #f56c6c;
+            }
+          }
+        }
+        
+        .share-meta {
+          margin-top: 4px;
+          text-align: right;
+          
+          .share-time {
+            font-size: 11px;
+            color: #c0c4cc;
+          }
         }
       }
     }
@@ -310,8 +565,19 @@ onMounted(() => {
   .messages-container {
     padding: 12px 15px;
     
-    .message-bubble {
-      max-width: 85% !important;
+    .message-item {
+      .message-bubble {
+        max-width: 85% !important;
+      }
+      
+      .post-share-message {
+        max-width: 95% !important;
+        
+        .shared-post-card {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+      }
     }
   }
   
