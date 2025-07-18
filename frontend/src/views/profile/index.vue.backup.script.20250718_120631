@@ -74,6 +74,18 @@
             <el-icon><Setting /></el-icon>
             AI Agent
           </el-button>
+
+          <!-- 🆕 Developer Test Button (只对Chris_Liu显示) -->
+          <el-button 
+            v-if="isChrisLiu"
+            type="warning" 
+            @click="chatWithDevAI"
+            :loading="devAILoading"
+            class="dev-test-btn"
+          >
+            <el-icon><Tools /></el-icon>
+            Test Script AI
+          </el-button>
         </div>
       </div>
       
@@ -99,16 +111,46 @@
         </el-tabs>
       </div>
     </div>
+
+    <!-- 🆕 Developer Test AI Dialog -->
+    <el-dialog
+      v-model="devAIChatVisible"
+      title="Developer Test AI Chat"
+      width="95%"
+      class="dev-ai-chat-dialog"
+      @close="cleanupDevAIChat"
+    >
+      <div class="dev-ai-chat-container">
+        <div class="dev-chat-header">
+          <el-alert
+            title="Development Testing Mode"
+            type="warning"
+            :closable="false"
+            show-icon
+          >
+            This is using hardcoded script for testing purposes. Changes here do not affect your production AI agent.
+          </el-alert>
+        </div>
+        
+        <div v-if="devAIAgent?.external_script_code" class="dev-chat-content">
+          <div ref="devAIChatDiv" class="dev-ai-chat-wrapper"></div>
+        </div>
+        <div v-else class="no-dev-chat">
+          <el-empty description="Development AI not available" />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture, User, Location, Link, Calendar, Edit, Setting } from '@element-plus/icons-vue'
+import { Picture, User, Location, Link, Calendar, Edit, Setting, Tools } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getUserProfile } from '@/api/auth'
 import { getUserPosts, getUserLikedPosts } from '@/api/users'
+import { getDevTestAgent } from '@/api/ai'
 import { getFileUrl, formatDate } from '@/utils'
 import PostList from '@/components/post/PostList.vue'
 
@@ -116,10 +158,19 @@ const userStore = useUserStore()
 const loading = ref(true)
 const postsLoading = ref(false)
 const likedPostsLoading = ref(false)
+const devAILoading = ref(false)
 const profile = ref({})
 const userPosts = ref([])
 const likedPosts = ref([])
 const activeTab = ref('posts')
+const devAIChatVisible = ref(false)
+const devAIAgent = ref(null)
+const devAIChatDiv = ref()
+
+// 检查是否为Chris_Liu（用户ID = 3，用户名 = 'Chris_Liu'）
+const isChrisLiu = computed(() => {
+  return userStore.userId === 3 || userStore.username === 'Chris_Liu'
+})
 
 // Tab change handler
 const handleTabChange = async (tab) => {
@@ -169,6 +220,91 @@ const loadLikedPosts = async () => {
   } finally {
     likedPostsLoading.value = false
   }
+}
+
+// 🆕 开发者测试AI对话
+const chatWithDevAI = async () => {
+  console.log('=== chatWithDevAI called from profile ===')
+  console.log('Current user:', userStore.userId, userStore.username)
+  console.log('IsChrisLiu:', isChrisLiu.value)
+  
+  devAILoading.value = true
+  
+  try {
+    // 获取硬编码的开发者测试AI代理
+    const response = await getDevTestAgent(userStore.userId)
+    devAIAgent.value = response.data
+    
+    console.log('Dev AI Agent loaded:', devAIAgent.value)
+    
+    if (!devAIAgent.value?.external_script_code) {
+      ElMessage.error('Development AI script not available')
+      return
+    }
+    
+    devAIChatVisible.value = true
+    
+    // 等待对话框打开
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    if (devAIChatDiv.value) {
+      devAIChatDiv.value.innerHTML = ''
+      
+      // 创建临时容器来解析HTML
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = devAIAgent.value.external_script_code.trim()
+      
+      // 查找script元素
+      const scriptElement = tempDiv.querySelector('script')
+      
+      if (scriptElement) {
+        console.log('Found script element for dev AI chat')
+        
+        // 创建新的script元素
+        const newScript = document.createElement('script')
+        
+        // 复制所有属性
+        Array.from(scriptElement.attributes).forEach(attr => {
+          newScript.setAttribute(attr.name, attr.value)
+        })
+        
+        // 如果有内联代码，也复制过来
+        if (scriptElement.textContent) {
+          newScript.textContent = scriptElement.textContent
+        }
+        
+        console.log('Adding dev script to chat container')
+        
+        // 添加到容器
+        devAIChatDiv.value.appendChild(newScript)
+        
+        console.log('Dev AI chat script added successfully')
+        ElMessage.success('Developer AI chat loaded successfully')
+        
+      } else {
+        console.error('No script element found in dev AI agent code')
+        ElMessage.error('Invalid development AI chat configuration')
+      }
+    }
+    
+  } catch (error) {
+    console.error('Failed to load development AI chat:', error)
+    if (error.response?.status === 403) {
+      ElMessage.error('Access denied: This feature is restricted to developers')
+    } else {
+      ElMessage.error('Failed to load development AI chat interface')
+    }
+  } finally {
+    devAILoading.value = false
+  }
+}
+
+const cleanupDevAIChat = () => {
+  console.log('Dev AI chat cleaned up')
+  if (devAIChatDiv.value) {
+    devAIChatDiv.value.innerHTML = ''
+  }
+  devAIAgent.value = null
 }
 
 // Handle post deleted from user posts
@@ -351,6 +487,18 @@ onMounted(async () => {
     .el-button .el-icon {
       margin-right: 6px;
     }
+
+    // 🆕 开发者测试按钮样式
+    .dev-test-btn {
+      border: 2px dashed #e6a23c !important;
+      background: linear-gradient(135deg, #f5f1e8, #fdf6ec) !important;
+      
+      &:hover {
+        background: linear-gradient(135deg, #f0ecdf, #f9f2e6) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(230, 162, 60, 0.3);
+      }
+    }
   }
 }
 
@@ -367,6 +515,39 @@ onMounted(async () => {
     :deep(.el-tabs__content) {
       padding: 20px 30px;
       min-height: 400px;
+    }
+  }
+}
+
+// 🆕 开发者AI对话框样式
+.dev-ai-chat-dialog {
+  .dev-ai-chat-container {
+    height: 650px;
+    
+    .dev-chat-header {
+      margin-bottom: 15px;
+    }
+    
+    .dev-chat-content {
+      height: calc(100% - 60px);
+      border: 2px solid #e6a23c;
+      border-radius: 8px;
+      overflow: hidden;
+      
+      .dev-ai-chat-wrapper {
+        height: 100%;
+        width: 100%;
+        background: #fdf6ec;
+      }
+    }
+    
+    .no-dev-chat {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 400px;
+      border: 2px dashed #e6a23c;
+      border-radius: 8px;
     }
   }
 }
@@ -399,6 +580,12 @@ onMounted(async () => {
       :deep(.el-tabs__content) {
         padding: 20px 15px;
       }
+    }
+  }
+
+  .dev-ai-chat-dialog {
+    .dev-ai-chat-container {
+      height: 500px;
     }
   }
 }

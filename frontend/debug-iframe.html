@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Iframe Debug Test</title>
+</head>
+<body>
+    <h1>Iframe Communication Debug</h1>
+    <div id="status">Loading...</div>
+    
+    <iframe 
+        id="testIframe"
+        src="https://www.xingyunlink.com/chat/share?shareId=xs4443zwclnh7uelttdtg7z6"
+        style="width: 100%; height: 500px; border: 1px solid #ccc;"
+        allow="microphone"
+    ></iframe>
+
+    <script>
+        console.log('=== Iframe Debug Test Started ===');
+        
+        const iframe = document.getElementById('testIframe');
+        const status = document.getElementById('status');
+        
+        // iframe加载事件
+        iframe.onload = function() {
+            console.log('✅ Iframe loaded successfully');
+            status.innerHTML = '✅ Iframe loaded';
+        };
+        
+        iframe.onerror = function() {
+            console.log('❌ Iframe failed to load');
+            status.innerHTML = '❌ Iframe failed to load';
+        };
+        
+        // 监听跨域消息
+        window.addEventListener('message', function(event) {
+            console.log('📨 Received message from iframe:', event);
+            console.log('Origin:', event.origin);
+            console.log('Data:', event.data);
+            console.log('Source:', event.source);
+        });
+        
+        // 监听网络错误
+        window.addEventListener('error', function(event) {
+            console.log('🚫 Global error:', event);
+        });
+        
+        // 定期检查iframe内容
+        setInterval(() => {
+            try {
+                console.log('🔍 Iframe document:', iframe.contentDocument);
+                console.log('🔍 Iframe window:', iframe.contentWindow);
+            } catch (e) {
+                console.log('⚠️ Cannot access iframe content (CORS):', e.message);
+            }
+        }, 5000);
+        
+        setTimeout(() => {
+            console.log('📊 5 seconds status check:');
+            console.log('- Iframe src:', iframe.src);
+            console.log('- Iframe ready state:', iframe.readyState);
+            console.log('- Window location:', window.location.href);
+        }, 5000);
+    </script>
+</body>
+</html>

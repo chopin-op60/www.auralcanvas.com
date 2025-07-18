@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Platform Direct Test</title>
+</head>
+<body>
+    <h1>AI Platform Comparison Test</h1>
+    
+    <div style="display: flex; gap: 20px;">
+        <div style="flex: 1;">
+            <h3>Direct Access (New Window)</h3>
+            <button onclick="openDirect()">Open in New Window</button>
+            <p>This tests the AI platform directly without any embedding constraints.</p>
+        </div>
+        
+        <div style="flex: 1;">
+            <h3>Embedded in Iframe</h3>
+            <iframe 
+                id="embeddedAI"
+                src="https://www.xingyunlink.com/chat/share?shareId=xs4443zwclnh7uelttdtg7z6"
+                style="width: 100%; height: 400px; border: 1px solid #ccc;"
+                allow="microphone"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation allow-modals"
+            ></iframe>
+            <div id="embedStatus">Loading...</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h3>Console Output:</h3>
+        <div id="console" style="border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; background: #f5f5f5;"></div>
+    </div>
+
+    <script>
+        const consoleDiv = document.getElementById('console');
+        const embedStatus = document.getElementById('embedStatus');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${timestamp}] ${message}`;
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function openDirect() {
+            log('Opening AI platform in new window...');
+            window.open('https://www.xingyunlink.com/chat/share?shareId=xs4443zwclnh7uelttdtg7z6', '_blank');
+        }
+        
+        const iframe = document.getElementById('embeddedAI');
+        
+        iframe.onload = function() {
+            log('✅ Iframe loaded successfully');
+            embedStatus.textContent = '✅ Loaded';
+            
+            // 尝试检测iframe内容变化
+            let lastHeight = iframe.offsetHeight;
+            setInterval(() => {
+                const currentHeight = iframe.offsetHeight;
+                if (currentHeight !== lastHeight) {
+                    log(`📏 Iframe height changed: ${lastHeight} -> ${currentHeight}`);
+                    lastHeight = currentHeight;
+                }
+            }, 1000);
+        };
+        
+        iframe.onerror = function() {
+            log('❌ Iframe failed to load');
+            embedStatus.textContent = '❌ Failed';
+        };
+        
+        // 监听iframe URL变化
+        let lastSrc = iframe.src;
+        setInterval(() => {
+            if (iframe.src !== lastSrc) {
+                log(`🔄 Iframe URL changed: ${lastSrc} -> ${iframe.src}`);
+                lastSrc = iframe.src;
+            }
+        }, 1000);
+        
+        // 尝试与iframe通信
+        setInterval(() => {
+            try {
+                iframe.contentWindow.postMessage('ping', '*');
+            } catch (e) {
+                // Silently fail - this is expected due to CORS
+            }
+        }, 10000);
+        
+        window.addEventListener('message', function(event) {
+            log(`📨 Received message from iframe: ${JSON.stringify(event.data)}`);
+        });
+        
+        log('🚀 Platform test initialized');
+    </script>
+</body>
+</html>

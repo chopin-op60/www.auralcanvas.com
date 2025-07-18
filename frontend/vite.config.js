@@ -9,32 +9,24 @@ export default defineConfig({
       '@': resolve(__dirname, 'src')
     }
   },
-  server: {
-    host: '0.0.0.0',
-    port: 8083,
-    allowedHosts: [
-      'localhost',
-      '8.221.96.70', 
-      'www.auralcanvas.fun',
-      'auralcanvas.fun',
-      '.auralcanvas.fun'
-    ]
-  },
   build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks: {
-          'vue': ['vue'],
-          'vue-router': ['vue-router'],
-          'pinia': ['pinia'], 
-          'element-plus': ['element-plus'],
-          'element-icons': ['@element-plus/icons-vue'],
-          'utils': ['axios', 'js-cookie', 'dayjs']
+          'vendor': ['vue', 'vue-router', 'pinia'],
+          'ui': ['element-plus']
         }
       }
     },
-    chunkSizeWarningLimit: 1000
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false,
+        drop_debugger: true
+      }
+    }
+  },
+  define: {
+    __AI_IFRAME_MODE__: true
   }
 })

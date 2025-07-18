@@ -1,0 +1,205 @@
+const BaseController = require('./BaseController');
+const UserService = require('../services/UserService');
+const userValidator = require('../validators/userValidator');
+const jwt = require('jsonwebtoken');
+
+class AuthController extends BaseController {
+    constructor() {
+        super();
+        this.userService = new UserService();
+    }
+
+    // User registration
+    register = this.handleAsync(async (req, res) => {
+        const { username, email, password } = req.body;
+
+        // Data validation
+        const validationErrors = userValidator.validateRegister({ username, email, password });
+        if (validationErrors.length > 0) {
+            return this.sendError(res, validationErrors.join(', '), 400);
+        }
+
+        try {
+            const user = await this.userService.createUser({ username, email, password });
+            
+            // Generate JWT token
+            const token = jwt.sign(
+                { id: user.id, username: user.username },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+
+            // Return user info (without password)
+            const userResponse = {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                avatar: user.avatar,
+                created_at: user.created_at
+            };
+
+            this.sendSuccess(res, { user: userResponse, token }, 'Registration successful', 201);
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // User login
+    login = this.handleAsync(async (req, res) => {
+        const { username, password } = req.body;
+
+        // Data validation
+        const validationErrors = userValidator.validateLogin({ username, password });
+        if (validationErrors.length > 0) {
+            return this.sendError(res, validationErrors.join(', '), 400);
+        }
+
+        try {
+            // Find user
+            const user = await this.userService.findByUsername(username);
+            if (!user) {
+                return this.sendError(res, 'Invalid username or password', 401);
+            }
+
+            // Validate password
+            const isValidPassword = await this.userService.validatePassword(password, user.password_hash);
+            if (!isValidPassword) {
+                return this.sendError(res, 'Invalid username or password', 401);
+            }
+
+            // Generate JWT token
+            const token = jwt.sign(
+                { id: user.id, username: user.username },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+
+            // Return user info (without password)
+            const userResponse = {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                avatar: user.avatar,
+                created_at: user.created_at
+            };
+
+            this.sendSuccess(res, { user: userResponse, token }, 'Login successful');
+        } catch (error) {
+            this.sendError(res, 'Login failed', 500, error.message);
+        }
+    });
+
+    // Token verification endpoint
+    verify = this.handleAsync(async (req, res) => {
+        try {
+            const token = req.header('Authorization')?.replace('Bearer ', '');
+            
+            if (!token) {
+                return this.sendError(res, 'No token provided', 401);
+            }
+
+            if (!process.env.JWT_SECRET) {
+                console.error('JWT_SECRET not set');
+                return this.sendError(res, 'Server configuration error', 500);
+            }
+
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const user = await this.userService.getUserProfile(decoded.id);
+                
+                if (!user) {
+                    return this.sendError(res, 'User not found', 401);
+                }
+
+                this.sendSuccess(res, user, 'Token verification successful');
+            } catch (jwtError) {
+                console.error('JWT verification error:', jwtError.message);
+                return this.sendError(res, 'Invalid token', 401);
+            }
+        } catch (error) {
+            console.error('Token verification failed:', error);
+            this.sendError(res, 'Verification process error', 500);
+        }
+    });
+
+    // Get user profile
+    profile = this.handleAsync(async (req, res) => {
+        try {
+            console.log('Getting profile for user ID:', req.user.id);
+            const user = await this.userService.getUserProfile(req.user.id);
+            
+            if (!user) {
+                console.log('User not found for ID:', req.user.id);
+                return this.sendError(res, 'User not found', 404);
+            }
+
+            console.log('Profile retrieved successfully for user:', user.username);
+            this.sendSuccess(res, user, 'User profile retrieved successfully');
+        } catch (error) {
+            console.error('Error getting user profile:', error);
+            this.sendError(res, 'Failed to get user profile', 500, error.message);
+        }
+    });
+
+    // Update user profile - FIXED FILE HANDLING
+    updateProfile = this.handleAsync(async (req, res) => {
+        console.log('=== Profile Update Request ===');
+        console.log('User ID:', req.user.id);
+        console.log('Request body:', req.body);
+        console.log('Files received:', req.files);
+
+        try {
+            const profileData = {};
+            
+            // Extract text fields from request body
+            const allowedFields = ['username', 'email', 'bio', 'location', 'website'];
+            allowedFields.forEach(field => {
+                if (req.body[field] !== undefined && req.body[field] !== null) {
+                    profileData[field] = req.body[field].toString().trim();
+                }
+            });
+
+            // Handle file uploads - req.files is an OBJECT not array when using fields()
+            if (req.files) {
+                console.log('Processing files:', Object.keys(req.files));
+                
+                // Handle avatar upload
+                if (req.files.avatar && req.files.avatar.length > 0) {
+                    profileData.avatar = `/uploads/avatars/${req.files.avatar[0].filename}`;
+                    console.log('Avatar file processed:', profileData.avatar);
+                }
+                
+                // Handle cover image upload
+                if (req.files.cover_image && req.files.cover_image.length > 0) {
+                    profileData.cover_image = `/uploads/covers/${req.files.cover_image[0].filename}`;
+                    console.log('Cover image file processed:', profileData.cover_image);
+                }
+            }
+
+            console.log('Profile data to update:', profileData);
+
+            if (Object.keys(profileData).length === 0) {
+                return this.sendError(res, 'No valid data to update', 400);
+            }
+
+            // Update profile
+            await this.userService.updateProfile(req.user.id, profileData);
+            
+            // Get updated profile
+            const updatedProfile = await this.userService.getUserProfile(req.user.id);
+            
+            console.log('Profile updated successfully for user:', updatedProfile.username);
+            this.sendSuccess(res, updatedProfile, 'Profile updated successfully');
+        } catch (error) {
+            console.error('Failed to update profile:', error);
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // Test endpoint
+    test = this.handleAsync(async (req, res) => {
+        this.sendSuccess(res, { message: 'Auth controller working with database!' }, 'Authentication module test successful');
+    });
+}
+
+module.exports = new AuthController();

@@ -7,6 +7,7 @@ class PostService extends BaseService {
         this.mediaService = new MediaService();
     }
 
+
     // 获取混合时间线（原创+转发帖子）
     async getPostsWithUserInfo(offset = 0, limit = 10, userId = null) {
         try {
@@ -219,7 +220,6 @@ class PostService extends BaseService {
             throw error;
         }
     }
-
     async createPost(postData, files = []) {
         try {
             console.log('Creating mixed-content post with data:', postData);
@@ -275,6 +275,7 @@ class PostService extends BaseService {
             throw error;
         }
     }
+
 
     async getPostById(id) {
         try {

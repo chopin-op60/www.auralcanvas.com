@@ -76,12 +76,6 @@ const router = createRouter({
       meta: { title: 'Messages', requiresAuth: true }
     },
     {
-      path: '/ai',
-      name: 'AIAgent',
-      component: () => import('@/views/ai/index.vue'),
-      meta: { title: 'AI Agent', requiresAuth: true }
-    },
-    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       component: () => import('@/views/error/404.vue'),

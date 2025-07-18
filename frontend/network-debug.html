@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Debug</title>
+    <script>
+        const originalFetch = window.fetch;
+        const originalXHR = window.XMLHttpRequest;
+        
+        // 拦截所有fetch请求
+        window.fetch = function(...args) {
+            console.log('🌐 FETCH Request:', args[0], args[1]);
+            return originalFetch.apply(this, args)
+                .then(response => {
+                    console.log('✅ FETCH Response:', response.status, response.url);
+                    return response;
+                })
+                .catch(error => {
+                    console.error('❌ FETCH Error:', error);
+                    throw error;
+                });
+        };
+        
+        // 拦截所有XMLHttpRequest
+        window.XMLHttpRequest = function() {
+            const xhr = new originalXHR();
+            const originalOpen = xhr.open;
+            const originalSend = xhr.send;
+            
+            xhr.open = function(method, url) {
+                console.log(`🔗 XHR ${method}:`, url);
+                return originalOpen.apply(this, arguments);
+            };
+            
+            xhr.addEventListener('load', function() {
+                console.log('✅ XHR Response:', this.status, this.responseURL);
+            });
+            
+            xhr.addEventListener('error', function() {
+                console.error('❌ XHR Error:', this);
+            });
+            
+            return xhr;
+        };
+        
+        // 监听所有unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('❌ Unhandled Promise Rejection:', event.reason);
+        });
+    </script>
+</head>
+<body>
+    <h1>Network Debug with AI Iframe</h1>
+    
+    <div id="logs" style="margin-bottom: 20px;">
+        <h3>Real-time Logs:</h3>
+        <div id="logContainer" style="border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+    </div>
+    
+    <iframe 
+        id="aiIframe"
+        src="https://www.xingyunlink.com/chat/share?shareId=xs4443zwclnh7uelttdtg7z6"
+        style="width: 100%; height: 500px; border: 1px solid #000;"
+        allow="microphone"
+    ></iframe>
+
+    <script>
+        const logContainer = document.getElementById('logContainer');
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? 'red' : type === 'warn' ? 'orange' : 'black';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            const message = args.join(' ');
+            addLog('log', message);
+            return originalConsoleLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            const message = args.join(' ');
+            addLog('error', message);
+            return originalConsoleError.apply(console, args);
+        };
+        
+        const iframe = document.getElementById('aiIframe');
+        
+        iframe.onload = function() {
+            console.log('🎯 Iframe fully loaded');
+            
+            // 检查iframe内容
+            setTimeout(() => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    console.log('📄 Iframe document title:', iframeDoc?.title);
+                    console.log('📄 Iframe document readyState:', iframeDoc?.readyState);
+                    console.log('📄 Iframe body children:', iframeDoc?.body?.children?.length);
+                } catch (e) {
+                    console.log('⚠️ Cannot access iframe content due to CORS');
+                }
+            }, 2000);
+        };
+        
+        iframe.onerror = function(e) {
+            console.error('❌ Iframe error:', e);
+        };
+        
+        // Performance monitoring
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                const perfData = performance.getEntriesByType('navigation')[0];
+                console.log('📊 Page Performance:');
+                console.log(`- DNS lookup: ${perfData.domainLookupEnd - perfData.domainLookupStart}ms`);
+                console.log(`- TCP connect: ${perfData.connectEnd - perfData.connectStart}ms`);
+                console.log(`- Request: ${perfData.responseStart - perfData.requestStart}ms`);
+                console.log(`- Response: ${perfData.responseEnd - perfData.responseStart}ms`);
+                console.log(`- DOM load: ${perfData.domContentLoadedEventEnd - perfData.domContentLoadedEventStart}ms`);
+                
+                const resources = performance.getEntriesByType('resource');
+                console.log(`📊 Total resources loaded: ${resources.length}`);
+                
+                resources.forEach(resource => {
+                    if (resource.name.includes('xingyunlink')) {
+                        console.log(`🔗 Xingyunlink resource: ${resource.name} (${resource.duration}ms)`);
+                    }
+                });
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

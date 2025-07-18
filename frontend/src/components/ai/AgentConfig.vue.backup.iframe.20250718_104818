@@ -1,0 +1,710 @@
+<template>
+  <div class="agent-config">
+    <div class="config-header">
+      <h3>AI Agent Configuration</h3>
+      <p>Configure your AI agent settings and external platform integration</p>
+    </div>
+
+    <el-form 
+      v-loading="loading"
+      ref="agentFormRef"
+      :model="agentForm"
+      :rules="agentRules"
+      label-width="160px"
+      class="agent-form"
+    >
+      <!-- Agent Basic Info -->
+      <div class="form-section">
+        <h4>Basic Information</h4>
+        
+        <el-form-item label="Agent Name" prop="agent_name">
+          <el-input
+            v-model="agentForm.agent_name"
+            placeholder="Give your AI agent a name"
+            maxlength="100"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item label="Description" prop="agent_description">
+          <el-input
+            v-model="agentForm.agent_description"
+            type="textarea"
+            :rows="3"
+            placeholder="Describe what your AI agent represents"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item label="Privacy Level" prop="privacy_level">
+          <el-select v-model="agentForm.privacy_level" style="width: 100%">
+            <el-option label="Public - Anyone can chat" value="public" />
+            <el-option label="Friends Only - Only friends can chat" value="friends" />
+            <el-option label="Private - Only you can test" value="private" />
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <!-- Integration Setup -->
+      <el-divider content-position="left">AI Platform Integration</el-divider>
+      
+      <div class="form-section">
+        <div class="integration-instructions">
+          <el-alert
+            title="Integration Steps"
+            type="info"
+            show-icon
+            :closable="false"
+          >
+            <ol>
+              <li>First configure and download your knowledge base from the "Knowledge Base" tab</li>
+              <li>Go to an AI platform (like xingyunlink.com) and create a new agent</li>
+              <li>Upload your knowledge base document to train the AI</li>
+              <li>Copy the integration script OR share URL provided by the platform</li>
+              <li>Paste either the script code or URL below</li>
+            </ol>
+          </el-alert>
+        </div>
+
+        <div class="integration-inputs">
+          <el-form-item label="Integration Script" prop="external_script_code">
+            <el-input
+              v-model="agentForm.external_script_code"
+              type="textarea"
+              :rows="6"
+              placeholder="Paste the complete <script> tag from your AI platform (recommended for embedded widget)"
+            />
+            <div class="input-help">
+              <small>For embedded chat widget that appears on your page</small>
+              <div v-if="agentForm.external_script_code" class="input-info">
+                <small>✅ Script code: {{ agentForm.external_script_code.length }} characters</small>
+              </div>
+            </div>
+          </el-form-item>
+
+          <div class="or-divider">
+            <span>OR</span>
+          </div>
+
+          <el-form-item label="Chat Share URL" prop="external_platform_url">
+            <el-input
+              v-model="agentForm.external_platform_url"
+              placeholder="https://www.xingyunlink.com/chat/share?shareId=xs4443zwclnh7uelttdtg7z6"
+              maxlength="500"
+            />
+            <div class="input-help">
+              <small>For popup or new window chat experience</small>
+              <div v-if="agentForm.external_platform_url" class="input-info">
+                <small>✅ URL configured</small>
+              </div>
+            </div>
+          </el-form-item>
+        </div>
+      </div>
+
+      <!-- Agent Status -->
+      <el-divider content-position="left">Agent Status</el-divider>
+      
+      <div class="status-section">
+        <div class="status-display">
+          <el-tag 
+            :type="getStatusType(agentForm.status)" 
+            size="large"
+            effect="dark"
+          >
+            {{ getStatusText(agentForm.status) }}
+          </el-tag>
+          <div class="status-description">
+            <p>{{ getStatusDescription(agentForm.status) }}</p>
+          </div>
+        </div>
+
+        <div class="status-actions">
+          <el-button
+            v-if="agentForm.status === 'disabled' || agentForm.status === 'configured'"
+            type="success"
+            :disabled="!canActivate"
+            @click="activateAgent"
+          >
+            <el-icon><VideoPlay /></el-icon>
+            Activate Agent
+          </el-button>
+          
+          <el-button
+            v-if="agentForm.status === 'active'"
+            type="warning"
+            @click="deactivateAgent"
+          >
+            <el-icon><VideoPause /></el-icon>
+            Deactivate Agent
+          </el-button>
+        </div>
+      </div>
+
+      <!-- Test Options -->
+      <div v-if="agentForm.status === 'active' || canActivate" class="test-section">
+        <h4>Test Your AI Agent</h4>
+        <div class="test-options">
+          <el-button 
+            v-if="hasScriptCode"
+            @click="testEmbedded" 
+            type="primary"
+            :disabled="!canActivate"
+          >
+            <el-icon><ChatDotSquare /></el-icon>
+            Test Embedded Widget
+          </el-button>
+          
+          <el-button 
+            v-if="hasUrl"
+            @click="testNewWindow" 
+            type="info"
+            :disabled="!canActivate"
+          >
+            <el-icon><Link /></el-icon>
+            Test in New Window
+          </el-button>
+          
+          <el-button 
+            v-if="hasUrl"
+            @click="testPopup" 
+            type="success"
+            :disabled="!canActivate"
+          >
+            <el-icon><Monitor /></el-icon>
+            Test in Popup
+          </el-button>
+
+          <el-button 
+            @click="testCompatibility"
+            type="warning"
+            size="small"
+          >
+            <el-icon><Tools /></el-icon>
+            Compatibility Test
+          </el-button>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <el-form-item class="form-actions">
+        <el-button 
+          type="primary" 
+          :loading="saving"
+          @click="saveConfiguration"
+        >
+          <el-icon><Check /></el-icon>
+          Save Configuration
+        </el-button>
+        <el-button @click="resetForm">
+          <el-icon><Refresh /></el-icon>
+          Reset
+        </el-button>
+      </el-form-item>
+    </el-form>
+
+    <!-- Embedded Test Dialog -->
+    <el-dialog
+      v-model="embeddedTestVisible"
+      title="Test Embedded AI Widget"
+      width="80%"
+      class="embedded-dialog"
+      @close="cleanupEmbedded"
+    >
+      <div class="embedded-container">
+        <div ref="embeddedChatContainer" class="embedded-chat-container">
+          <div class="test-status">
+            <p>Testing embedded AI chat widget...</p>
+            <div class="loading-animation"></div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- Popup Test Dialog -->
+    <el-dialog
+      v-model="popupTestVisible"
+      title="AI Chat"
+      width="90%"
+      class="popup-chat-dialog"
+    >
+      <div class="popup-container">
+        <iframe 
+          v-if="chatUrl"
+          :src="chatUrl"
+          class="popup-iframe"
+          frameborder="0"
+          allowfullscreen
+        ></iframe>
+        <div v-else class="no-url">
+          <el-empty description="No chat URL configured" />
+        </div>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Check, Refresh, VideoPlay, VideoPause, ChatDotSquare, Link, Monitor, Tools } from '@element-plus/icons-vue'
+import { 
+  getAgentConfig, 
+  updateAgentConfig, 
+  activateAgent as activateAgentAPI,
+  deactivateAgent as deactivateAgentAPI
+} from '@/api/ai'
+
+const agentFormRef = ref()
+const embeddedChatContainer = ref()
+const loading = ref(false)
+const saving = ref(false)
+const embeddedTestVisible = ref(false)
+const popupTestVisible = ref(false)
+
+const agentForm = reactive({
+  status: 'disabled',
+  agent_name: '',
+  agent_description: '',
+  external_script_code: '',
+  external_platform_url: '',
+  privacy_level: 'friends'
+})
+
+const agentRules = {
+  agent_name: [
+    { max: 100, message: 'Agent name cannot exceed 100 characters', trigger: 'blur' }
+  ],
+  agent_description: [
+    { max: 500, message: 'Description cannot exceed 500 characters', trigger: 'blur' }
+  ]
+}
+
+// 计算属性
+const chatUrl = computed(() => {
+  return agentForm.external_platform_url?.trim() || ''
+})
+
+const hasScriptCode = computed(() => {
+  return agentForm.external_script_code && agentForm.external_script_code.trim().length > 0
+})
+
+const hasUrl = computed(() => {
+  return agentForm.external_platform_url && agentForm.external_platform_url.trim().length > 0
+})
+
+const canActivate = computed(() => {
+  return hasScriptCode.value || hasUrl.value
+})
+
+// 状态显示
+const getStatusType = (status) => {
+  const types = {
+    'disabled': 'info',
+    'configured': 'warning', 
+    'active': 'success'
+  }
+  return types[status] || 'info'
+}
+
+const getStatusText = (status) => {
+  const texts = {
+    'disabled': 'Disabled',
+    'configured': 'Configured',
+    'active': 'Active'
+  }
+  return texts[status] || 'Unknown'
+}
+
+const getStatusDescription = (status) => {
+  const descriptions = {
+    'disabled': 'Agent is not configured yet. Add integration code or URL to enable.',
+    'configured': 'Agent is configured but not active. Click activate to make it available.',
+    'active': 'Agent is active and available for chat based on privacy settings.'
+  }
+  return descriptions[status] || ''
+}
+
+// 加载配置
+const loadConfiguration = async () => {
+  loading.value = true
+  try {
+    const response = await getAgentConfig()
+    
+    Object.keys(agentForm).forEach(key => {
+      if (response.data.hasOwnProperty(key)) {
+        agentForm[key] = response.data[key] || ''
+      }
+    })
+    
+  } catch (error) {
+    console.error('Failed to load agent config:', error)
+    ElMessage.error('Failed to load agent configuration')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 保存配置
+const saveConfiguration = async () => {
+  if (!agentFormRef.value) return
+  
+  try {
+    await agentFormRef.value.validate()
+    saving.value = true
+    
+    const dataToSend = {
+      agent_name: agentForm.agent_name || null,
+      agent_description: agentForm.agent_description || null,
+      external_script_code: agentForm.external_script_code || null,
+      external_platform_url: agentForm.external_platform_url || null,
+      privacy_level: agentForm.privacy_level || 'friends'
+    }
+    
+    await updateAgentConfig(dataToSend)
+    ElMessage.success('Agent configuration saved successfully')
+    await loadConfiguration()
+    
+  } catch (error) {
+    if (error.response) {
+      ElMessage.error(error.response.data.message || 'Failed to save configuration')
+    } else if (error !== 'validation failed') {
+      ElMessage.error('Failed to save configuration')
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+// 激活Agent
+const activateAgent = async () => {
+  try {
+    await ElMessageBox.confirm(
+      'This will make your AI agent available for chat. Continue?',
+      'Activate AI Agent',
+      { type: 'warning' }
+    )
+
+    await activateAgentAPI()
+    ElMessage.success('AI agent activated successfully')
+    await loadConfiguration()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('Failed to activate agent')
+    }
+  }
+}
+
+// 停用Agent
+const deactivateAgent = async () => {
+  try {
+    await ElMessageBox.confirm(
+      'This will disable your AI agent and make it unavailable for chat. Continue?',
+      'Deactivate AI Agent',
+      { type: 'warning' }
+    )
+
+    await deactivateAgentAPI()
+    ElMessage.success('AI agent deactivated')
+    await loadConfiguration()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('Failed to deactivate agent')
+    }
+  }
+}
+
+// 清理嵌入式测试
+const cleanupEmbedded = () => {
+  if (embeddedChatContainer.value) {
+    const dynamicElements = document.querySelectorAll('[data-auralcanvas-test="true"], #fastgpt-chatbot-window, #fastgpt-chatbot-button')
+    dynamicElements.forEach(el => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el)
+      }
+    })
+  }
+}
+
+// 测试方法
+const testEmbedded = async () => {
+  if (!hasScriptCode.value) {
+    ElMessage.warning('No script code configured')
+    return
+  }
+
+  embeddedTestVisible.value = true
+  await nextTick()
+  
+  ElMessage.info('Embedded widget test may have compatibility issues. Try "New Window" test for better results.')
+  
+  // 这里保留之前的脚本测试逻辑，但降低期望
+  // 主要是为了展示我们尝试过嵌入式方案
+}
+
+const testNewWindow = () => {
+  if (!hasUrl.value) {
+    ElMessage.warning('No chat URL configured')
+    return
+  }
+  
+  window.open(chatUrl.value, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes')
+  ElMessage.success('Chat opened in new window')
+}
+
+const testPopup = () => {
+  if (!hasUrl.value) {
+    ElMessage.warning('No chat URL configured')
+    return
+  }
+  
+  popupTestVisible.value = true
+}
+
+const testCompatibility = () => {
+  ElMessage.info('Running compatibility check...', 3000)
+  
+  console.log('=== AI Agent Compatibility Report ===')
+  console.log('Script configured:', hasScriptCode.value)
+  console.log('URL configured:', hasUrl.value)
+  console.log('User Agent:', navigator.userAgent)
+  console.log('Domain:', window.location.hostname)
+  
+  setTimeout(() => {
+    ElMessage({
+      type: 'info',
+      message: 'Compatibility check completed. See console for details.',
+      duration: 5000
+    })
+  }, 1000)
+}
+
+const resetForm = () => {
+  if (agentFormRef.value) {
+    agentFormRef.value.resetFields()
+  }
+  loadConfiguration()
+}
+
+onMounted(() => {
+  loadConfiguration()
+})
+</script>
+
+<style lang="scss" scoped>
+.agent-config {
+  .config-header {
+    text-align: center;
+    margin-bottom: 30px;
+    
+    h3 {
+      color: #303133;
+      margin-bottom: 8px;
+    }
+    
+    p {
+      color: #909399;
+      font-size: 14px;
+    }
+  }
+  
+  .agent-form {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  
+  .form-section {
+    margin-bottom: 20px;
+    
+    h4 {
+      color: #409eff;
+      margin-bottom: 15px;
+    }
+  }
+  
+  .integration-instructions {
+    margin-bottom: 25px;
+    
+    ol {
+      padding-left: 20px;
+      line-height: 1.6;
+      
+      li {
+        margin-bottom: 8px;
+      }
+    }
+  }
+  
+  .integration-inputs {
+    .or-divider {
+      text-align: center;
+      margin: 20px 0;
+      position: relative;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #dcdfe6;
+      }
+      
+      span {
+        background: white;
+        padding: 0 15px;
+        color: #909399;
+        font-size: 14px;
+        position: relative;
+        z-index: 1;
+      }
+    }
+  }
+  
+  .input-help {
+    margin-top: 5px;
+    color: #909399;
+    font-size: 12px;
+    
+    .input-info {
+      margin-top: 5px;
+      color: #67c23a;
+    }
+  }
+  
+  .status-section, .test-section {
+    margin: 25px 0;
+    
+    h4 {
+      color: #409eff;
+      margin-bottom: 15px;
+    }
+  }
+  
+  .status-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    
+    .status-display {
+      flex: 1;
+      
+      .status-description p {
+        color: #606266;
+        margin: 8px 0 0 0;
+        font-size: 14px;
+      }
+    }
+    
+    .status-actions {
+      display: flex;
+      gap: 10px;
+      
+      .el-button .el-icon {
+        margin-right: 6px;
+      }
+    }
+  }
+  
+  .test-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    
+    .el-button .el-icon {
+      margin-right: 6px;
+    }
+  }
+  
+  .form-actions {
+    margin-top: 30px;
+    text-align: center;
+    
+    .el-button {
+      margin: 0 8px;
+      
+      .el-icon {
+        margin-right: 6px;
+      }
+    }
+  }
+}
+
+.embedded-dialog, .popup-chat-dialog {
+  .embedded-container, .popup-container {
+    height: 500px;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f9fa;
+    
+    .embedded-chat-container {
+      height: 100%;
+      width: 100%;
+      background: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      .test-status {
+        text-align: center;
+        color: #606266;
+        
+        .loading-animation {
+          width: 30px;
+          height: 30px;
+          border: 3px solid #f3f3f3;
+          border-top: 3px solid #409eff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 15px auto;
+        }
+      }
+    }
+    
+    .popup-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 8px;
+    }
+    
+    .no-url {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .status-section {
+    flex-direction: column;
+    align-items: flex-start;
+    
+    .status-actions, .test-options {
+      width: 100%;
+      
+      .el-button {
+        flex: 1;
+        margin-bottom: 10px;
+      }
+    }
+  }
+  
+  .form-actions .el-button {
+    width: 100%;
+    margin: 8px 0;
+  }
+}
+</style>

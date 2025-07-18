@@ -1,0 +1,345 @@
+<template>
+  <div class="agent-discovery">
+    <div class="discovery-header">
+      <h3>Discover AI Agents</h3>
+      <p>Chat with AI agents created by other users</p>
+    </div>
+
+    <div v-loading="loading" class="agents-grid">
+      <div v-for="agent in agents" :key="agent.id" class="agent-card">
+        <div class="agent-info">
+          <el-avatar :src="getFileUrl(agent.avatar)" :size="50">
+            <el-icon><User /></el-icon>
+          </el-avatar>
+          <div class="info-content">
+            <h4>{{ agent.agent_name || `${agent.username}'s AI Assistant` }}</h4>
+            <p class="username">by {{ agent.username }}</p>
+            <p v-if="agent.agent_description" class="description">
+              {{ truncateText(agent.agent_description, 100) }}
+            </p>
+            <div class="agent-status">
+              <el-tag size="small" type="success">
+                <el-icon><ChatDotSquare /></el-icon>
+                Active
+              </el-tag>
+            </div>
+          </div>
+        </div>
+        <div class="agent-actions">
+          <el-button type="primary" size="small" @click="chatWithAgent(agent)">
+            <el-icon><ChatDotSquare /></el-icon>
+            Start Chat
+          </el-button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="agents.length === 0 && !loading" class="empty-state">
+      <el-empty description="No public AI agents available yet">
+        <template #description>
+          <p>No public AI agents are available at the moment.</p>
+          <p>Be the first to create and share your AI agent!</p>
+        </template>
+        <el-button type="primary" @click="$router.push('/ai')">
+          Create Your AI Agent
+        </el-button>
+      </el-empty>
+    </div>
+
+    <!-- Chat Dialog -->
+    <el-dialog
+      v-model="chatDialogVisible"
+      :title="currentAgent?.agent_name || 'AI Chat'"
+      width="80%"
+      class="agent-chat-dialog"
+      @close="cleanupChat"
+    >
+      <div class="chat-container">
+        <div v-if="currentAgent?.external_script_code" class="chat-iframe-container">
+          <div ref="chatContainer" class="chat-content"></div>
+        </div>
+        <div v-else class="no-chat">
+          <el-empty description="Chat interface not available" />
+        </div>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import { User, ChatDotSquare } from '@element-plus/icons-vue'
+import { getPublicAgents, getUserAgent } from '@/api/ai'
+import { getFileUrl, truncateText } from '@/utils'
+
+const loading = ref(false)
+const agents = ref([])
+const chatDialogVisible = ref(false)
+const currentAgent = ref(null)
+const chatContainer = ref()
+
+// 加载公开AI代理
+const loadPublicAgents = async () => {
+  loading.value = true
+  try {
+    console.log('Loading public agents...')
+    const response = await getPublicAgents({ limit: 20 })
+    agents.value = response.data.agents || []
+    console.log('Loaded agents:', agents.value.length)
+  } catch (error) {
+    console.error('Failed to load public agents:', error)
+    ElMessage.error('Failed to load AI agents')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 与AI代理对话
+const chatWithAgent = async (agent) => {
+  try {
+    console.log('=== chatWithAgent called ===')
+    console.log('Agent:', agent)
+    
+    // 获取完整的代理信息（包括script代码）
+    const response = await getUserAgent(agent.user_id)
+    currentAgent.value = response.data
+    console.log('Full agent data:', currentAgent.value)
+    
+    chatDialogVisible.value = true
+
+    await nextTick()
+    
+    if (chatContainer.value && currentAgent.value.external_script_code) {
+      chatContainer.value.innerHTML = ''
+      
+      try {
+        console.log('Setting up AI chat with script:', currentAgent.value.external_script_code.length, 'characters')
+        
+        // 创建临时容器来解析HTML
+        const tempDiv = document.createElement('div')
+        tempDiv.innerHTML = currentAgent.value.external_script_code.trim()
+        
+        // 查找script元素
+        const scriptElement = tempDiv.querySelector('script')
+        
+        if (scriptElement) {
+          console.log('Found script element:', scriptElement)
+          
+          // 创建新的script元素
+          const newScript = document.createElement('script')
+          
+          // 复制所有属性
+          Array.from(scriptElement.attributes).forEach(attr => {
+            newScript.setAttribute(attr.name, attr.value)
+            console.log('Set attribute:', attr.name, '=', attr.value)
+          })
+          
+          // 如果有内联代码，也复制过来
+          if (scriptElement.textContent) {
+            newScript.textContent = scriptElement.textContent
+          }
+          
+          console.log('Created new script element, adding to container')
+          
+          // 添加到容器
+          chatContainer.value.appendChild(newScript)
+          
+          console.log('Script added successfully')
+          
+          // 检查脚本是否开始加载
+          setTimeout(() => {
+            const iframe = chatContainer.value.querySelector('iframe')
+            const elements = chatContainer.value.children.length
+            console.log('Chat container elements:', elements)
+            if (iframe) {
+              console.log('Found iframe:', iframe)
+            } else {
+              console.log('No iframe found yet, checking for other elements...')
+              console.log('Container content:', chatContainer.value.innerHTML.length > 0 ? 'Has content' : 'Empty')
+            }
+          }, 3000)
+          
+        } else {
+          console.error('No script element found in agent code')
+          ElMessage.error('Invalid AI chat configuration')
+        }
+        
+      } catch (error) {
+        console.error('Failed to load chat script:', error)
+        ElMessage.error('Failed to load chat interface')
+      }
+    } else {
+      console.error('Missing chat container or script code')
+    }
+    
+  } catch (error) {
+    console.error('Failed to access agent:', error)
+    ElMessage.error('Cannot access this AI agent')
+  }
+}
+
+// 清理聊天容器
+const cleanupChat = () => {
+  if (chatContainer.value) {
+    chatContainer.value.innerHTML = ''
+  }
+  currentAgent.value = null
+  console.log('Chat cleaned up')
+}
+
+onMounted(() => {
+  loadPublicAgents()
+})
+</script>
+
+<style lang="scss" scoped>
+.agent-discovery {
+  .discovery-header {
+    text-align: center;
+    margin-bottom: 30px;
+    
+    h3 {
+      color: #303133;
+      margin-bottom: 8px;
+    }
+    
+    p {
+      color: #909399;
+      font-size: 14px;
+    }
+  }
+  
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .agent-card {
+    border: 1px solid #e4e7ed;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s;
+    background: white;
+    
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: #409eff;
+      transform: translateY(-2px);
+    }
+    
+    .agent-info {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      
+      .info-content {
+        flex: 1;
+        
+        h4 {
+          margin: 0 0 5px 0;
+          color: #303133;
+          font-size: 16px;
+          font-weight: 600;
+        }
+        
+        .username {
+          margin: 0 0 8px 0;
+          color: #909399;
+          font-size: 12px;
+        }
+        
+        .description {
+          margin: 0 0 10px 0;
+          color: #606266;
+          font-size: 14px;
+          line-height: 1.4;
+        }
+        
+        .agent-status {
+          .el-tag {
+            .el-icon {
+              margin-right: 4px;
+              font-size: 12px;
+            }
+          }
+        }
+      }
+    }
+    
+    .agent-actions {
+      text-align: right;
+      
+      .el-button {
+        .el-icon {
+          margin-right: 6px;
+        }
+      }
+    }
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    
+    .el-empty {
+      :deep(.el-empty__description) {
+        p {
+          margin: 8px 0;
+          color: #909399;
+        }
+      }
+    }
+  }
+}
+
+.agent-chat-dialog {
+  .chat-container {
+    height: 500px;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f9fa;
+    
+    .chat-iframe-container {
+      height: 100%;
+      width: 100%;
+      
+      .chat-content {
+        height: 100%;
+        width: 100%;
+        background: white;
+      }
+    }
+    
+    .no-chat {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: white;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .agents-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .agent-card {
+    padding: 15px;
+    
+    .agent-actions {
+      text-align: center;
+      
+      .el-button {
+        width: 100%;
+      }
+    }
+  }
+}
+</style>

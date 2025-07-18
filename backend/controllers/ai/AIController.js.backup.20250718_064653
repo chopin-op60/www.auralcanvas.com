@@ -1,0 +1,202 @@
+const BaseController = require('../BaseController');
+const KnowledgeBaseService = require('../../services/ai/KnowledgeBaseService');
+const AIAgentService = require('../../services/ai/AIAgentService');
+const fs = require('fs');
+const path = require('path');
+
+class AIController extends BaseController {
+    constructor() {
+        super();
+        this.knowledgeBaseService = new KnowledgeBaseService();
+        this.aiAgentService = new AIAgentService();
+    }
+
+    // 获取知识库选择配置
+    getKnowledgeSelection = this.handleAsync(async (req, res) => {
+        try {
+            const selection = await this.knowledgeBaseService.getUserKnowledgeSelection(req.user.id);
+            this.sendSuccess(res, selection, 'Knowledge selection retrieved successfully');
+        } catch (error) {
+            this.sendError(res, error.message, 500);
+        }
+    });
+
+    // 更新知识库选择
+    updateKnowledgeSelection = this.handleAsync(async (req, res) => {
+        try {
+            const selection = await this.knowledgeBaseService.updateKnowledgeSelection(req.user.id, req.body);
+            this.sendSuccess(res, selection, 'Knowledge selection updated successfully');
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // 预览知识库内容
+    previewKnowledgeBase = this.handleAsync(async (req, res) => {
+        try {
+            const knowledgeBase = await this.knowledgeBaseService.extractUserKnowledgeBase(req.user.id);
+            
+            // 简化预览数据
+            const preview = {
+                user_info: knowledgeBase.user_info,
+                posts_count: knowledgeBase.posts.length,
+                comments_count: knowledgeBase.comments.length,
+                liked_posts_count: knowledgeBase.liked_posts.length,
+                media_summary: knowledgeBase.media_summary,
+                social_stats: knowledgeBase.social_stats,
+                posts_sample: knowledgeBase.posts.slice(0, 3), // 只显示前3个帖子作为样本
+                comments_sample: knowledgeBase.comments.slice(0, 5) // 只显示前5个评论作为样本
+            };
+
+            this.sendSuccess(res, preview, 'Knowledge base preview generated');
+        } catch (error) {
+            this.sendError(res, error.message, 500);
+        }
+    });
+
+    // 下载知识库文档
+    downloadKnowledgeDocument = this.handleAsync(async (req, res) => {
+        try {
+            console.log('Generating knowledge document download for user:', req.user.id);
+            
+            const document = await this.knowledgeBaseService.generateKnowledgeDocument(req.user.id);
+            const fileName = `ai-knowledge-base-${req.user.username || req.user.id}-${Date.now()}.md`;
+            const filePath = path.join(__dirname, '../../exports', fileName);
+            
+            // 确保exports目录存在
+            const exportsDir = path.join(__dirname, '../../exports');
+            if (!fs.existsSync(exportsDir)) {
+                fs.mkdirSync(exportsDir, { recursive: true });
+            }
+            
+            // 写入文件
+            fs.writeFileSync(filePath, document, 'utf8');
+            
+            // 设置下载响应头
+            res.setHeader('Content-Type', 'text/markdown');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.setHeader('Content-Length', fs.statSync(filePath).size);
+            
+            // 发送文件
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
+            
+            // 清理临时文件（延迟删除）
+            setTimeout(() => {
+                try {
+                    if (fs.existsSync(filePath)) {
+                        fs.unlinkSync(filePath);
+                        console.log('Temporary file cleaned up:', filePath);
+                    }
+                } catch (error) {
+                    console.error('Failed to clean up temporary file:', error);
+                }
+            }, 30000); // 30秒后删除
+
+            console.log('Knowledge document download initiated for:', fileName);
+        } catch (error) {
+            console.error('Error generating document download:', error);
+            this.sendError(res, error.message, 500);
+        }
+    });
+
+    // 获取用户AI代理配置
+    getAgentConfig = this.handleAsync(async (req, res) => {
+        try {
+            const agent = await this.aiAgentService.getUserAgent(req.user.id);
+            this.sendSuccess(res, agent, 'Agent configuration retrieved');
+        } catch (error) {
+            this.sendError(res, error.message, 500);
+        }
+    });
+
+    // 更新AI代理配置
+    updateAgentConfig = this.handleAsync(async (req, res) => {
+        try {
+            const agent = await this.aiAgentService.updateAgentConfig(req.user.id, req.body);
+            this.sendSuccess(res, agent, 'Agent configuration updated');
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // 激活AI代理
+    activateAgent = this.handleAsync(async (req, res) => {
+        try {
+            const agent = await this.aiAgentService.activateAgent(req.user.id);
+            this.sendSuccess(res, agent, 'AI agent activated successfully');
+        } catch (error) {
+            this.sendError(res, error.message, 400);
+        }
+    });
+
+    // 停用AI代理
+    deactivateAgent = this.handleAsync(async (req, res) => {
+        try {
+            const agent = await this.aiAgentService.deactivateAgent(req.user.id);
+            this.sendSuccess(res, agent, 'AI agent deactivated');
+        } catch (error) {
+            this.sendError(res, error.message, 500);
+        }
+    });
+
+    // 获取公开AI代理列表
+    getPublicAgents = this.handleAsync(async (req, res) => {
+        try {
+            const { page, limit, offset } = this.getPagination(req);
+            const result = await this.aiAgentService.getPublicAgents(offset, limit);
+            
+            const response = {
+                agents: result.data,
+                pagination: {
+                    page,
+                    limit,
+                    total: result.total,
+                    totalPages: Math.ceil(result.total / limit)
+                }
+            };
+
+            this.sendSuccess(res, response, 'Public agents retrieved');
+        } catch (error) {
+            console.error('Error in getPublicAgents:', error);
+            this.sendError(res, error.message, 500);
+        }
+    });
+
+    // 获取特定用户的AI代理（供其他用户访问）
+    getUserAgent = this.handleAsync(async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const currentUserId = req.user?.id;
+            
+            // 检查访问权限
+            const canAccess = await this.aiAgentService.canAccessAgent(parseInt(userId), currentUserId);
+            
+            if (!canAccess) {
+                return this.sendError(res, 'Access denied to this AI agent', 403);
+            }
+            
+            const agent = await this.aiAgentService.getUserAgent(userId);
+            
+            // 不返回敏感信息给其他用户
+            const publicAgent = {
+                id: agent.id,
+                user_id: agent.user_id,
+                agent_name: agent.agent_name,
+                agent_description: agent.agent_description,
+                status: agent.status,
+                privacy_level: agent.privacy_level,
+                external_script_code: agent.external_script_code, // AI聊天需要的脚本
+                created_at: agent.created_at,
+                updated_at: agent.updated_at
+            };
+            
+            this.sendSuccess(res, publicAgent, 'User AI agent retrieved');
+        } catch (error) {
+            console.error('Error in getUserAgent:', error);
+            this.sendError(res, error.message, 500);
+        }
+    });
+}
+
+module.exports = new AIController();

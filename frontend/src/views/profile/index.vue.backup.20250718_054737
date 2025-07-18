@@ -70,10 +70,6 @@
             <el-icon><Edit /></el-icon>
             Edit Profile
           </el-button>
-          <el-button @click="$router.push('/ai')">
-            <el-icon><Setting /></el-icon>
-            AI Agent
-          </el-button>
         </div>
       </div>
       
@@ -105,7 +101,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture, User, Location, Link, Calendar, Edit, Setting } from '@element-plus/icons-vue'
+import { Picture, User, Location, Link, Calendar, Edit } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getUserProfile } from '@/api/auth'
 import { getUserPosts, getUserLikedPosts } from '@/api/users'
@@ -344,9 +340,6 @@ onMounted(async () => {
   
   .actions-section {
     padding-top: 60px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     
     .el-button .el-icon {
       margin-right: 6px;

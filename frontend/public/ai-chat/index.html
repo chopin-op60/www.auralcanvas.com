@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Interface</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .iframe-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        .chat-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #409eff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #e74c3c;
+            padding: 20px;
+        }
+        .retry-btn {
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .retry-btn:hover {
+            background: #337ecc;
+        }
+    </style>
+</head>
+<body>
+    <div class="iframe-container">
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <div>Loading AI Chat...</div>
+        </div>
+        <div id="error" class="error" style="display: none;">
+            <h3>⚠️ Failed to load AI chat</h3>
+            <p>The AI platform may be temporarily unavailable.</p>
+            <button class="retry-btn" onclick="retryLoad()">Retry</button>
+        </div>
+        <iframe id="chatFrame" class="chat-iframe" style="display: none;"></iframe>
+    </div>
+
+    <script>
+        // 阻止全局错误传播
+        window.addEventListener('error', function(e) {
+            console.log('Captured global error:', e.message);
+            // 不让错误冒泡
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+
+        // 阻止未处理的Promise rejection
+        window.addEventListener('unhandledrejection', function(e) {
+            console.log('Captured unhandled promise rejection:', e.reason);
+            e.preventDefault();
+            return false;
+        });
+
+        // 获取URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatUrl = urlParams.get('url');
+        
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const chatFrame = document.getElementById('chatFrame');
+        
+        let loadTimeout;
+        
+        function showError(message = 'Failed to load AI chat') {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.querySelector('p').textContent = message;
+            clearTimeout(loadTimeout);
+        }
+        
+        function retryLoad() {
+            error.style.display = 'none';
+            loading.style.display = 'block';
+            chatFrame.src = '';
+            setTimeout(() => {
+                loadChat();
+            }, 1000);
+        }
+        
+        function loadChat() {
+            if (!chatUrl) {
+                showError('No chat URL provided. Invalid request.');
+                return;
+            }
+            
+            console.log('Loading AI chat in clean environment:', chatUrl);
+            
+            // 清除任何现有的iframe内容
+            chatFrame.src = 'about:blank';
+            
+            setTimeout(() => {
+                chatFrame.onload = function() {
+                    console.log('AI chat iframe loaded successfully');
+                    clearTimeout(loadTimeout);
+                    loading.style.display = 'none';
+                    chatFrame.style.display = 'block';
+                    
+                    // 监听iframe内的消息
+                    window.addEventListener('message', function(event) {
+                        if (event.origin === 'https://www.xingyunlink.com') {
+                            console.log('Received message from AI platform:', event.data);
+                        }
+                    });
+                };
+                
+                chatFrame.onerror = function() {
+                    console.error('Failed to load AI chat iframe');
+                    showError('Failed to connect to AI platform');
+                };
+                
+                // 设置超时
+                loadTimeout = setTimeout(() => {
+                    if (loading.style.display !== 'none') {
+                        console.warn('AI chat loading timeout');
+                        showError('Loading timeout. AI platform may be slow to respond.');
+                    }
+                }, 15000);
+                
+                // 加载iframe
+                chatFrame.src = decodeURIComponent(chatUrl);
+                
+            }, 500);
+        }
+        
+        // 开始加载
+        loadChat();
+        
+        // 父窗口通信
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'reload') {
+                retryLoad();
+            }
+        });
+    </script>
+</body>
+</html>

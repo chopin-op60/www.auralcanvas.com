@@ -104,35 +104,6 @@
             <el-icon><ChatDotRound /></el-icon>
             Message
           </el-button>
-
-          <!-- Regular AI Agent Chat Button -->
-          <el-button 
-            v-if="aiAgent && aiAgent.status === 'active'"
-            type="success"
-            @click="chatWithAI"
-            :loading="aiLoading"
-          >
-            <el-icon><Setting /></el-icon>
-            Chat with AI
-          </el-button>
-        </div>
-
-        <!-- 🆕 Developer Test Actions (只有Chris_Liu本人访问自己的页面时显示) -->
-        <div v-if="isCurrentUser && isChrisLiu" class="dev-test-actions">
-          <el-divider content-position="left">
-            <span style="color: #e6a23c; font-size: 12px;">Developer Testing</span>
-          </el-divider>
-          <div class="dev-buttons">
-            <el-button 
-              type="warning" 
-              size="small"
-              @click="chatWithDevAI"
-              :loading="devAILoading"
-            >
-              <el-icon><Tools /></el-icon>
-              Test Script AI
-            </el-button>
-          </div>
         </div>
       </div>
       
@@ -158,58 +129,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Regular AI Chat Dialog -->
-    <el-dialog
-      v-model="aiChatVisible"
-      :title="`Chat with ${user?.username}'s AI`"
-      width="90%"
-      class="ai-chat-dialog"
-      @close="cleanupAIChat"
-    >
-      <div class="ai-chat-container">
-        <div v-if="aiAgent?.external_script_code && aiSandboxUrl" class="chat-iframe-sandbox">
-          <iframe
-            ref="aiChatIframe"
-            :src="aiSandboxUrl"
-            class="isolated-ai-iframe"
-            allow="microphone"
-          ></iframe>
-        </div>
-        <div v-else class="no-chat">
-          <el-empty description="AI chat not available" />
-        </div>
-      </div>
-    </el-dialog>
-
-    <!-- 🆕 Developer Test AI Dialog -->
-    <el-dialog
-      v-model="devAIChatVisible"
-      title="Developer Test AI Chat"
-      width="95%"
-      class="dev-ai-chat-dialog"
-      @close="cleanupDevAIChat"
-    >
-      <div class="dev-ai-chat-container">
-        <div class="dev-chat-header">
-          <el-alert
-            title="Development Testing Mode"
-            type="warning"
-            :closable="false"
-            show-icon
-          >
-            This is using hardcoded script for testing purposes. Changes here do not affect your production AI agent.
-          </el-alert>
-        </div>
-        
-        <div v-if="devAIAgent?.external_script_code" class="dev-chat-content">
-          <div ref="devAIChatDiv" class="dev-ai-chat-wrapper"></div>
-        </div>
-        <div v-else class="no-dev-chat">
-          <el-empty description="Development AI not available" />
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
@@ -218,14 +137,13 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  User, Location, Link, Calendar, Plus, Clock, ChatDotRound, Setting, Tools
+  User, Location, Link, Calendar, Plus, Clock, ChatDotRound 
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getFileUrl, formatDate } from '@/utils'
 import { getUser, getUserPosts } from '@/api/users'
 import { checkFriendStatus, sendFriendRequest } from '@/api/friends'
 import { createOrGetConversation } from '@/api/messages'
-import { getUserAgent } from '@/api/ai'
 import PostList from '@/components/post/PostList.vue'
 
 const route = useRoute()
@@ -235,46 +153,13 @@ const userStore = useUserStore()
 const user = ref(null)
 const userPosts = ref([])
 const friendStatus = ref('none')
-const aiAgent = ref(null)
-const devAIAgent = ref(null)
 const loading = ref(false)
 const postsLoading = ref(false)
 const actionLoading = ref(false)
-const aiLoading = ref(false)
-const devAILoading = ref(false)
-const aiChatVisible = ref(false)
-const devAIChatVisible = ref(false)
-const aiChatIframe = ref()
-const devAIChatDiv = ref()
-const aiSandboxUrl = ref('')
 
 const isCurrentUser = computed(() => {
   return user.value && userStore.userId === user.value.id
 })
-
-// 检查是否为Chris_Liu（用户ID = 3，用户名 = 'Chris_Liu'）
-const isChrisLiu = computed(() => {
-  return user.value && (user.value.id === 3 || user.value.username === 'Chris_Liu')
-})
-
-// 创建隔离的沙箱URL
-const createAISandboxUrl = (aiCode) => {
-  console.log('Creating AI sandbox URL for user profile:', aiCode.substring(0, 100) + '...')
-  
-  if (aiCode.includes('<iframe')) {
-    const srcMatch = aiCode.match(/src="([^"]*)"/)
-    if (srcMatch) {
-      console.log('Extracted iframe src for user profile:', srcMatch[1])
-      return srcMatch[1]
-    }
-  } else if (aiCode.startsWith('http')) {
-    console.log('Using direct URL for user profile:', aiCode)
-    return aiCode
-  }
-  
-  console.warn('Unknown AI code format in user profile')
-  return ''
-}
 
 const loadUserProfile = async () => {
   loading.value = true
@@ -283,10 +168,9 @@ const loadUserProfile = async () => {
     const response = await getUser(userId)
     user.value = response.data
     
-    // 如果不是当前用户，检查好友状态和AI代理
+    // 如果不是当前用户，检查好友状态
     if (!isCurrentUser.value && userStore.isLoggedIn) {
       await loadFriendStatus()
-      await loadAIAgent()
     }
   } catch (error) {
     console.error('Failed to load user profile:', error)
@@ -320,17 +204,6 @@ const loadFriendStatus = async () => {
   }
 }
 
-const loadAIAgent = async () => {
-  try {
-    const response = await getUserAgent(user.value.id)
-    aiAgent.value = response.data
-    console.log('AI Agent loaded for user profile:', aiAgent.value)
-  } catch (error) {
-    console.error('Failed to load AI agent:', error)
-    aiAgent.value = null
-  }
-}
-
 const handleSendFriendRequest = async () => {
   actionLoading.value = true
   try {
@@ -357,126 +230,6 @@ const handleStartConversation = async () => {
   } finally {
     actionLoading.value = false
   }
-}
-
-// 普通AI对话
-const chatWithAI = async () => {
-  if (!aiAgent.value || !aiAgent.value.external_script_code) {
-    ElMessage.warning('AI chat is not available')
-    return
-  }
-
-  console.log('=== chatWithAI called (User Profile) ===')
-  console.log('AI Agent:', aiAgent.value)
-
-  aiLoading.value = true
-  
-  try {
-    // 创建隔离的沙箱URL
-    const url = createAISandboxUrl(aiAgent.value.external_script_code)
-    if (!url) {
-      ElMessage.error('Cannot create sandbox URL for AI chat')
-      return
-    }
-    
-    aiSandboxUrl.value = url
-    aiChatVisible.value = true
-    
-    console.log('Opening AI chat in isolated environment:', url)
-    ElMessage.success('AI chat loaded successfully')
-    
-  } catch (error) {
-    console.error('Failed to open AI chat:', error)
-    ElMessage.error('Failed to load AI chat interface')
-  } finally {
-    aiLoading.value = false
-  }
-}
-
-// 🆕 开发者测试AI对话
-const chatWithDevAI = async () => {
-  console.log('=== chatWithDevAI called ===')
-  console.log('Current user:', userStore.userId)
-  console.log('Target user:', user.value?.id)
-  
-  devAILoading.value = true
-  
-  try {
-    // 获取硬编码的开发者测试AI代理
-    const response = await getDevTestAgent(user.value.id)
-    devAIAgent.value = response.data
-    
-    console.log('Dev AI Agent loaded:', devAIAgent.value)
-    
-    if (!devAIAgent.value?.external_script_code) {
-      ElMessage.error('Development AI script not available')
-      return
-    }
-    
-    devAIChatVisible.value = true
-    
-    // 等待对话框打开
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    if (devAIChatDiv.value) {
-      devAIChatDiv.value.innerHTML = ''
-      
-      // 创建临时容器来解析HTML
-      const tempDiv = document.createElement('div')
-      tempDiv.innerHTML = devAIAgent.value.external_script_code.trim()
-      
-      // 查找script元素
-      const scriptElement = tempDiv.querySelector('script')
-      
-      if (scriptElement) {
-        console.log('Found script element for dev AI chat')
-        
-        // 创建新的script元素
-        const newScript = document.createElement('script')
-        
-        // 复制所有属性
-        Array.from(scriptElement.attributes).forEach(attr => {
-          newScript.setAttribute(attr.name, attr.value)
-        })
-        
-        // 如果有内联代码，也复制过来
-        if (scriptElement.textContent) {
-          newScript.textContent = scriptElement.textContent
-        }
-        
-        console.log('Adding dev script to chat container')
-        
-        // 添加到容器
-        devAIChatDiv.value.appendChild(newScript)
-        
-        console.log('Dev AI chat script added successfully')
-        ElMessage.success('Developer AI chat loaded successfully')
-        
-      } else {
-        console.error('No script element found in dev AI agent code')
-        ElMessage.error('Invalid development AI chat configuration')
-      }
-    }
-    
-  } catch (error) {
-    console.error('Failed to load development AI chat:', error)
-    ElMessage.error('Failed to load development AI chat interface')
-  } finally {
-    devAILoading.value = false
-  }
-}
-
-const cleanupAIChat = () => {
-  console.log('AI chat cleaned up for user profile')
-  aiSandboxUrl.value = ''
-}
-
-const cleanupDevAIChat = () => {
-  console.log('Dev AI chat cleaned up')
-  if (devAIChatDiv.value) {
-    devAIChatDiv.value.innerHTML = ''
-  }
-  devAIAgent.value = null
 }
 
 onMounted(() => {
@@ -621,28 +374,9 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     gap: 12px;
-    flex-wrap: wrap;
     
     .el-button .el-icon {
       margin-right: 6px;
-    }
-  }
-
-  // 🆕 开发者测试区域样式
-  .dev-test-actions {
-    margin-top: 20px;
-    padding-top: 15px;
-    
-    .dev-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      
-      .el-button {
-        .el-icon {
-          margin-right: 6px;
-        }
-      }
     }
   }
 }
@@ -669,66 +403,6 @@ onMounted(() => {
   }
 }
 
-.ai-chat-dialog {
-  .ai-chat-container {
-    height: 600px;
-    border: 1px solid #dcdfe6;
-    border-radius: 8px;
-    overflow: hidden;
-    
-    .chat-iframe-sandbox {
-      height: 100%;
-      width: 100%;
-      
-      .isolated-ai-iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-      }
-    }
-    
-    .no-chat {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-    }
-  }
-}
-
-// 🆕 开发者AI对话框样式
-.dev-ai-chat-dialog {
-  .dev-ai-chat-container {
-    height: 650px;
-    
-    .dev-chat-header {
-      margin-bottom: 15px;
-    }
-    
-    .dev-chat-content {
-      height: calc(100% - 60px);
-      border: 2px solid #e6a23c;
-      border-radius: 8px;
-      overflow: hidden;
-      
-      .dev-ai-chat-wrapper {
-        height: 100%;
-        width: 100%;
-        background: #fdf6ec;
-      }
-    }
-    
-    .no-dev-chat {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 400px;
-      border: 2px dashed #e6a23c;
-      border-radius: 8px;
-    }
-  }
-}
-
 @media (max-width: 768px) {
   .profile-header {
     padding: 0 20px 20px;
@@ -747,23 +421,6 @@ onMounted(() => {
         gap: 20px;
       }
     }
-    
-    .profile-actions {
-      .el-button {
-        flex: 1;
-        min-width: 120px;
-      }
-    }
-
-    .dev-test-actions {
-      .dev-buttons {
-        flex-direction: column;
-        
-        .el-button {
-          width: 100%;
-        }
-      }
-    }
   }
   
   .cover-section {
@@ -772,14 +429,6 @@ onMounted(() => {
   
   .posts-section {
     padding: 15px;
-  }
-  
-  .ai-chat-dialog,
-  .dev-ai-chat-dialog {
-    .ai-chat-container,
-    .dev-ai-chat-container {
-      height: 400px;
-    }
   }
 }
 </style>
