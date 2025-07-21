@@ -173,28 +173,20 @@ const loadLikedPosts = async () => {
 
 // Handle post deleted from user posts
 const handlePostDeleted = (deletedPostId) => {
-  console.log('Profile: Post deleted from user posts:', deletedPostId)
   userPosts.value = userPosts.value.filter(post => post.id !== deletedPostId)
-  
   // Update posts count
   if (profile.value.posts_count > 0) {
     profile.value.posts_count--
   }
-  
-  ElMessage.success('Post deleted successfully')
 }
 
 // Handle post deleted from liked posts (when others delete)
 const handleLikedPostDeleted = (deletedPostId) => {
-  console.log('Profile: Post deleted from liked posts:', deletedPostId)
   likedPosts.value = likedPosts.value.filter(post => post.id !== deletedPostId)
-  
-  ElMessage.info('A post you liked has been deleted')
 }
 
 // Handle post updated (like status changed)
 const handlePostUpdated = (updatedData) => {
-  console.log('Profile: Post updated in user posts:', updatedData)
   const post = userPosts.value.find(p => p.id === updatedData.id)
   if (post) {
     Object.assign(post, updatedData)
@@ -202,14 +194,12 @@ const handlePostUpdated = (updatedData) => {
 }
 
 const handleLikedPostUpdated = (updatedData) => {
-  console.log('Profile: Post updated in liked posts:', updatedData)
   const post = likedPosts.value.find(p => p.id === updatedData.id)
   if (post) {
     Object.assign(post, updatedData)
     
     // If user unliked this post, remove from liked posts list
     if ('liked' in updatedData && !updatedData.liked) {
-      console.log('Removing unliked post from liked posts list')
       likedPosts.value = likedPosts.value.filter(p => p.id !== updatedData.id)
     }
   }

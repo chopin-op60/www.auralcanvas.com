@@ -12,7 +12,6 @@
             :posts="posts" 
             :loading="loading" 
             @post-deleted="handlePostDeleted"
-            @post-updated="handlePostUpdated"
           />
         </el-tab-pane>
         <el-tab-pane label="Trending" name="trending">
@@ -20,7 +19,6 @@
             :posts="posts" 
             :loading="loading" 
             @post-deleted="handlePostDeleted"
-            @post-updated="handlePostUpdated"
           />
         </el-tab-pane>
         <el-tab-pane label="Following" name="following" v-if="userStore.isLoggedIn">
@@ -28,7 +26,6 @@
             :posts="posts" 
             :loading="loading" 
             @post-deleted="handlePostDeleted"
-            @post-updated="handlePostUpdated"
           />
         </el-tab-pane>
       </el-tabs>
@@ -101,28 +98,14 @@ const loadPosts = async (tab = 'latest') => {
 
 // 处理帖子删除后的刷新
 const handlePostDeleted = (deletedPostId) => {
-  console.log('Home: Post deleted:', deletedPostId)
+  console.log('Post deleted:', deletedPostId)
   
   // 从当前列表中移除已删除的帖子
   posts.value = posts.value.filter(post => post.id !== deletedPostId)
   
-  ElMessage.success('Post deleted successfully')
-  
   // 如果列表变空，重新加载
   if (posts.value.length === 0) {
     loadPosts(activeTab.value)
-  }
-}
-
-// 处理帖子更新
-const handlePostUpdated = (updateData) => {
-  console.log('Home: Post updated:', updateData)
-  
-  // 找到对应的帖子并更新
-  const postIndex = posts.value.findIndex(post => post.id === updateData.id)
-  if (postIndex > -1) {
-    Object.assign(posts.value[postIndex], updateData)
-    console.log('Post state updated in home page')
   }
 }
 

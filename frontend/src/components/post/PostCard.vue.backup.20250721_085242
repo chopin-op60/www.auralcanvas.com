@@ -239,40 +239,12 @@ const comments = ref([])
 const commentsPage = ref(1)
 const hasMoreComments = ref(false)
 
-// Computed properties - 修复权限判断逻辑
+// Computed properties
 const canDelete = computed(() => {
-  console.log('Checking delete permission:')
-  console.log('- User logged in:', userStore.isLoggedIn)
-  console.log('- Current user ID:', userStore.userId, typeof userStore.userId)
-  console.log('- Post user ID:', props.post.user_id, typeof props.post.user_id)
-  console.log('- Is repost:', props.post.is_repost)
-  console.log('- Repost user ID:', props.post.repost_user?.id, typeof props.post.repost_user?.id)
-  
-  if (!userStore.isLoggedIn || !userStore.userId) {
-    console.log('Delete permission: NO - Not logged in')
-    return false
-  }
-  
-  const currentUserId = parseInt(userStore.userId)
-  const postAuthorId = parseInt(props.post.user_id || props.post.original_user_id)
-  const repostUserId = props.post.repost_user ? parseInt(props.post.repost_user.id) : null
-  
-  console.log('Normalized IDs:')
-  console.log('- Current user:', currentUserId)
-  console.log('- Post author:', postAuthorId)
-  console.log('- Repost user:', repostUserId)
-  
-  // 如果是转发，检查当前用户是否为转发者（可以删除转发）
-  if (props.post.is_repost && repostUserId) {
-    const canDeleteRepost = currentUserId === repostUserId
-    console.log('Delete permission for repost:', canDeleteRepost)
-    return canDeleteRepost
-  }
-  
-  // 如果是原帖，检查当前用户是否为作者
-  const canDeleteOriginal = currentUserId === postAuthorId
-  console.log('Delete permission for original post:', canDeleteOriginal)
-  return canDeleteOriginal
+  return userStore.isLoggedIn && 
+         userStore.userId && 
+         (props.post.user_id === userStore.userId || 
+          (props.post.is_repost && props.post.repost_user?.id === userStore.userId))
 })
 
 const isLiked = ref(props.post.user_liked || false)
@@ -307,15 +279,12 @@ const getImageUrls = () => {
 
 // Event handlers
 const handleCommand = async (command) => {
-  console.log('PostCard: Handle command:', command)
   if (command === 'delete') {
     await handleDelete();
   }
 }
 
 const handleDelete = async () => {
-  console.log('PostCard: Starting delete process for post:', props.post.id)
-  
   try {
     await ElMessageBox.confirm(
       'Are you sure you want to delete this post? This will also delete all associated media files. This action cannot be undone.',
@@ -328,21 +297,15 @@ const handleDelete = async () => {
       }
     );
     
-    console.log('PostCard: User confirmed deletion, calling API...')
-    
     await deletePost(props.post.id);
-    console.log('PostCard: Delete API call successful')
-    
     ElMessage.success('Post deleted successfully');
     emit('post-deleted', props.post.id);
     
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('PostCard: Failed to delete post:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete post';
+      console.error('Failed to delete post:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete post';
       ElMessage.error(errorMessage);
-    } else {
-      console.log('PostCard: Delete cancelled by user')
     }
   }
 }
@@ -401,7 +364,7 @@ const handleRepost = async () => {
     props.post.original_user.id : 
     props.post.user_id
 
-  if (parseInt(originalAuthorId) === parseInt(userStore.userId)) {
+  if (originalAuthorId === userStore.userId) {
     ElMessage.warning("You can't repost your own post")
     return
   }
@@ -558,14 +521,6 @@ onMounted(() => {
   currentLikesCount.value = props.post.likes_count || 0
   currentCommentsCount.value = props.post.comments_count || 0
   currentRepostsCount.value = props.post.reposts_count || 0
-  
-  console.log('PostCard mounted:', {
-    postId: props.post.id,
-    canDelete: canDelete.value,
-    currentUserId: userStore.userId,
-    postAuthor: props.post.user_id,
-    isRepost: props.post.is_repost
-  })
 })
 </script>
 
