@@ -141,7 +141,7 @@ class AuthController extends BaseController {
         }
     });
 
-    // Update user profile - FIXED FILE HANDLING & REMOVED WEBSITE
+    // Update user profile - FIXED FILE HANDLING
     updateProfile = this.handleAsync(async (req, res) => {
         console.log('=== Profile Update Request ===');
         console.log('User ID:', req.user.id);
@@ -151,8 +151,8 @@ class AuthController extends BaseController {
         try {
             const profileData = {};
             
-            // Extract text fields from request body (REMOVED WEBSITE)
-            const allowedFields = ['username', 'email', 'bio', 'location'];
+            // Extract text fields from request body
+            const allowedFields = ['username', 'email', 'bio', 'location', 'website'];
             allowedFields.forEach(field => {
                 if (req.body[field] !== undefined && req.body[field] !== null) {
                     profileData[field] = req.body[field].toString().trim();

@@ -1,0 +1,974 @@
+<template>
+  <div class="post-card">
+    <!-- 转发标识 -->
+    <div v-if="post.is_repost" class="repost-header">
+      <el-icon><Share /></el-icon>
+      <span>
+        <router-link 
+          :to="`/user/${post.repost_user.id}`" 
+          class="repost-user-link"
+        >
+          {{ post.repost_user.username }}
+        </router-link>
+        reposted
+      </span>
+      <span class="repost-time">{{ fromNow(post.reposted_at) }}</span>
+    </div>
+    
+    <!-- 转发评论 -->
+    <div v-if="post.is_repost && post.repost_comment" class="repost-comment">
+      <div class="repost-comment-content">
+        <el-avatar 
+          :src="getFileUrl(post.repost_user.avatar)" 
+          :size="32"
+        >
+          <el-icon><User /></el-icon>
+        </el-avatar>
+        <div class="comment-text">{{ post.repost_comment }}</div>
+      </div>
+    </div>
+    
+    <!-- 原帖内容区域 -->
+    <div class="original-post" :class="{ 'is-repost': post.is_repost }">
+      <div class="post-header">
+        <div class="user-info">
+          <el-avatar 
+            :src="getFileUrl(post.is_repost ? post.original_user.avatar : post.user_avatar)" 
+            :size="40"
+          >
+            <el-icon><User /></el-icon>
+          </el-avatar>
+          <div class="user-details">
+            <div class="username">
+              {{ post.is_repost ? post.original_user.username : post.username }}
+            </div>
+            <div class="time">{{ fromNow(post.created_at) }}</div>
+          </div>
+        </div>
+        
+        <!-- 作者操作菜单 -->
+        <div v-if="canDelete" class="post-menu">
+          <el-dropdown trigger="click" @command="handleCommand">
+            <el-button text circle>
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="delete" class="delete-item">
+                  <el-icon><Delete /></el-icon>
+                  Delete Post
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
+      
+      <div class="post-content">
+        <h3 class="post-title">{{ post.title }}</h3>
+        <p v-if="post.description" class="post-description">{{ post.description }}</p>
+        
+        <!-- Text Content -->
+        <div v-if="post.content_text" class="post-text">
+          <p>{{ post.content_text }}</p>
+        </div>
+        
+        <!-- Mixed Media Content -->
+        <div v-if="post.media && post.media.length > 0" class="post-media">
+          
+          <!-- Images Section - Smart scaling -->
+          <div v-if="imageFiles.length > 0" class="images-section">
+            <div class="images-grid" :class="getImageGridClass()">
+              <div 
+                v-for="(media, index) in imageFiles" 
+                :key="media.id" 
+                class="image-item"
+              >
+                <el-image 
+                  :src="getFileUrl(media.file_path)" 
+                  fit="contain"
+                  :preview-src-list="getImageUrls()"
+                  :initial-index="index"
+                  preview-teleported
+                  class="media-image"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <!-- Audio Files Section - Clean and minimal -->
+          <div v-if="audioFiles.length > 0" class="audio-section">
+            <div class="audio-list">
+              <div 
+                v-for="media in audioFiles" 
+                :key="media.id" 
+                class="audio-item"
+              >
+                <audio 
+                  :src="getFileUrl(media.file_path)" 
+                  controls 
+                  class="audio-player"
+                  preload="metadata"
+                >
+                  Your browser does not support audio playback.
+                </audio>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Post Actions -->
+      <div class="post-actions">
+        <el-button 
+          text 
+          @click="handleLike"
+          :loading="likeLoading"
+          :class="{ 'liked': isLiked }"
+          class="action-button like-button"
+        >
+          <el-icon><StarFilled /></el-icon>
+          {{ currentLikesCount }}
+        </el-button>
+        
+        <el-button 
+          text 
+          @click="handleComment"
+          class="action-button comment-button"
+        >
+          <el-icon><ChatDotSquare /></el-icon>
+          {{ currentCommentsCount }}
+        </el-button>
+        
+        <!-- 分享按钮下拉菜单 -->
+        <el-dropdown trigger="click" @command="handleShareCommand">
+          <el-button 
+            text 
+            class="action-button share-button"
+            :loading="repostLoading"
+          >
+            <el-icon><Share /></el-icon>
+            {{ currentRepostsCount }}
+            <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="repost">
+                <el-icon><Refresh /></el-icon>
+                {{ isReposted ? 'Remove Repost' : 'Repost' }}
+              </el-dropdown-item>
+              <el-dropdown-item command="share-to-friend">
+                <el-icon><ChatDotRound /></el-icon>
+                Share to Friend
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+    
+    <!-- Comments Section -->
+    <div v-if="showComments" class="comments-section">
+      <!-- Comment Form -->
+      <CommentForm 
+        v-if="userStore.isLoggedIn"
+        :post-id="post.id"
+        :username="post.is_repost ? post.original_user.username : post.username"
+        @comment-added="handleCommentAdded"
+      />
+      
+      <!-- Comments List -->
+      <CommentList 
+        :comments="comments"
+        :loading="commentsLoading"
+        :has-more="hasMoreComments"
+        @comment-deleted="handleCommentDeleted"
+        @load-more="loadMoreComments"
+      />
+    </div>
+    
+    <!-- Repost Dialog -->
+    <RepostDialog
+      v-model:visible="showRepostDialog"
+      :post="post"
+      @reposted="handleRepostSuccess"
+    />
+    
+    <!-- Share to Friend Dialog -->
+    <ShareToFriendDialog
+      v-model:visible="showShareDialog"
+      :post="post"
+      @shared="handleShareSuccess"
+    />
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { 
+  User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete,
+  ArrowDown, Refresh, ChatDotRound
+} from '@element-plus/icons-vue'
+import { fromNow, getFileUrl } from '@/utils'
+import { useUserStore } from '@/stores/user'
+import { deletePost, toggleLike, getComments, toggleRepost } from '@/api/posts'
+import CommentForm from './CommentForm.vue'
+import CommentList from './CommentList.vue'
+import RepostDialog from './RepostDialog.vue'
+import ShareToFriendDialog from './ShareToFriendDialog.vue'
+
+const props = defineProps({
+  post: {
+    type: Object,
+    required: true
+  }
+})
+
+const emit = defineEmits(['post-deleted', 'post-updated'])
+const userStore = useUserStore()
+
+// Reactive data
+const likeLoading = ref(false)
+const repostLoading = ref(false)
+const commentsLoading = ref(false)
+const showComments = ref(false)
+const showRepostDialog = ref(false)
+const showShareDialog = ref(false)
+const comments = ref([])
+const commentsPage = ref(1)
+const hasMoreComments = ref(false)
+
+// Computed properties - 修复权限判断逻辑
+const canDelete = computed(() => {
+  console.log('Checking delete permission:')
+  console.log('- User logged in:', userStore.isLoggedIn)
+  console.log('- Current user ID:', userStore.userId, typeof userStore.userId)
+  console.log('- Post user ID:', props.post.user_id, typeof props.post.user_id)
+  console.log('- Is repost:', props.post.is_repost)
+  console.log('- Repost user ID:', props.post.repost_user?.id, typeof props.post.repost_user?.id)
+  
+  if (!userStore.isLoggedIn || !userStore.userId) {
+    console.log('Delete permission: NO - Not logged in')
+    return false
+  }
+  
+  const currentUserId = parseInt(userStore.userId)
+  const postAuthorId = parseInt(props.post.user_id || props.post.original_user_id)
+  const repostUserId = props.post.repost_user ? parseInt(props.post.repost_user.id) : null
+  
+  console.log('Normalized IDs:')
+  console.log('- Current user:', currentUserId)
+  console.log('- Post author:', postAuthorId)
+  console.log('- Repost user:', repostUserId)
+  
+  // 如果是转发，检查当前用户是否为转发者（可以删除转发）
+  if (props.post.is_repost && repostUserId) {
+    const canDeleteRepost = currentUserId === repostUserId
+    console.log('Delete permission for repost:', canDeleteRepost)
+    return canDeleteRepost
+  }
+  
+  // 如果是原帖，检查当前用户是否为作者
+  const canDeleteOriginal = currentUserId === postAuthorId
+  console.log('Delete permission for original post:', canDeleteOriginal)
+  return canDeleteOriginal
+})
+
+const isLiked = ref(props.post.user_liked || false)
+const isReposted = ref(props.post.user_reposted || false)
+const currentLikesCount = ref(props.post.likes_count || 0)
+const currentCommentsCount = ref(props.post.comments_count || 0)
+const currentRepostsCount = ref(props.post.reposts_count || 0)
+
+// 分离图片和音频文件
+const imageFiles = computed(() => {
+  return props.post.media?.filter(m => m.media_type === 'image') || []
+})
+
+const audioFiles = computed(() => {
+  return props.post.media?.filter(m => m.media_type === 'audio') || []
+})
+
+// 图片网格样式
+const getImageGridClass = () => {
+  const count = imageFiles.value.length
+  if (count === 1) return 'single-image'
+  if (count === 2) return 'two-images'
+  if (count === 3) return 'three-images'
+  if (count === 4) return 'four-images'
+  return 'many-images'
+}
+
+// 获取所有图片URL用于预览
+const getImageUrls = () => {
+  return imageFiles.value.map(m => getFileUrl(m.file_path))
+}
+
+// Event handlers
+const handleCommand = async (command) => {
+  console.log('PostCard: Handle command:', command)
+  if (command === 'delete') {
+    await handleDelete();
+  }
+}
+
+const handleDelete = async () => {
+  console.log('PostCard: Starting delete process for post:', props.post.id)
+  
+  try {
+    await ElMessageBox.confirm(
+      'Are you sure you want to delete this post? This will also delete all associated media files. This action cannot be undone.',
+      'Delete Post',
+      {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    );
+    
+    console.log('PostCard: User confirmed deletion, calling API...')
+    
+    await deletePost(props.post.id);
+    console.log('PostCard: Delete API call successful')
+    
+    ElMessage.success('Post deleted successfully');
+    emit('post-deleted', props.post.id);
+    
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('PostCard: Failed to delete post:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete post';
+      ElMessage.error(errorMessage);
+    } else {
+      console.log('PostCard: Delete cancelled by user')
+    }
+  }
+}
+
+// Like functionality
+const handleLike = async () => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('Please login to like posts')
+    return
+  }
+
+  likeLoading.value = true
+  
+  try {
+    const response = await toggleLike(props.post.id)
+    const { liked, likes_count } = response.data
+    
+    isLiked.value = liked
+    currentLikesCount.value = likes_count
+    
+    // Update the original post object
+    props.post.user_liked = liked
+    props.post.likes_count = likes_count
+    
+    emit('post-updated', { 
+      id: props.post.id, 
+      liked, 
+      likes_count 
+    })
+    
+  } catch (error) {
+    console.error('Failed to toggle like:', error)
+    ElMessage.error(error.response?.data?.message || 'Failed to update like')
+  } finally {
+    likeLoading.value = false
+  }
+}
+
+// Share dropdown command handler
+const handleShareCommand = async (command) => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('Please login to share')
+    return
+  }
+
+  if (command === 'repost') {
+    await handleRepost()
+  } else if (command === 'share-to-friend') {
+    showShareDialog.value = true
+  }
+}
+
+// Repost functionality
+const handleRepost = async () => {
+  const originalAuthorId = props.post.is_repost ? 
+    props.post.original_user.id : 
+    props.post.user_id
+
+  if (parseInt(originalAuthorId) === parseInt(userStore.userId)) {
+    ElMessage.warning("You can't repost your own post")
+    return
+  }
+
+  if (isReposted.value) {
+    // 直接取消转发
+    repostLoading.value = true
+    
+    try {
+      const response = await toggleRepost(props.post.id)
+      const { reposted, reposts_count } = response.data
+      
+      isReposted.value = reposted
+      currentRepostsCount.value = reposts_count
+      
+      props.post.user_reposted = reposted
+      props.post.reposts_count = reposts_count
+      
+      ElMessage.success('Repost removed successfully')
+      
+      emit('post-updated', { 
+        id: props.post.id, 
+        reposted, 
+        reposts_count 
+      })
+      
+    } catch (error) {
+      console.error('Failed to remove repost:', error)
+      ElMessage.error(error.response?.data?.message || 'Failed to remove repost')
+    } finally {
+      repostLoading.value = false
+    }
+  } else {
+    // 显示转发对话框
+    showRepostDialog.value = true
+  }
+}
+
+const handleRepostSuccess = (data) => {
+  isReposted.value = data.reposted
+  currentRepostsCount.value = data.reposts_count
+  
+  props.post.user_reposted = data.reposted
+  props.post.reposts_count = data.reposts_count
+  
+  emit('post-updated', { 
+    id: props.post.id, 
+    reposted: data.reposted, 
+    reposts_count: data.reposts_count 
+  })
+}
+
+const handleShareSuccess = (data) => {
+  console.log('Post shared successfully:', data)
+  // 这里可以添加其他成功后的处理逻辑
+}
+
+// Comment functionality
+const handleComment = async () => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('Please login to view comments')
+    return
+  }
+
+  if (!showComments.value) {
+    showComments.value = true
+    await loadComments()
+  } else {
+    showComments.value = false
+  }
+}
+
+const loadComments = async () => {
+  if (commentsLoading.value) return
+
+  commentsLoading.value = true
+  
+  try {
+    const response = await getComments(props.post.id, {
+      page: 1,
+      limit: 10
+    })
+    
+    const { comments: commentData, pagination } = response.data
+    comments.value = commentData
+    currentCommentsCount.value = pagination.total
+    hasMoreComments.value = pagination.page < pagination.totalPages
+    commentsPage.value = 1
+    
+    // Update original post
+    props.post.comments_count = pagination.total
+    
+  } catch (error) {
+    console.error('Failed to load comments:', error)
+    ElMessage.error('Failed to load comments')
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+const loadMoreComments = async () => {
+  if (commentsLoading.value) return
+
+  commentsLoading.value = true
+  
+  try {
+    const response = await getComments(props.post.id, {
+      page: commentsPage.value + 1,
+      limit: 10
+    })
+    
+    const { comments: newComments, pagination } = response.data
+    comments.value.push(...newComments)
+    hasMoreComments.value = pagination.page < pagination.totalPages
+    commentsPage.value = pagination.page
+    
+  } catch (error) {
+    console.error('Failed to load more comments:', error)
+    ElMessage.error('Failed to load more comments')
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+const handleCommentAdded = (newComment) => {
+  comments.value.unshift(newComment)
+  currentCommentsCount.value++
+  props.post.comments_count = currentCommentsCount.value
+  
+  emit('post-updated', { 
+    id: props.post.id, 
+    comments_count: currentCommentsCount.value 
+  })
+}
+
+const handleCommentDeleted = (commentId) => {
+  const index = comments.value.findIndex(c => c.id === commentId)
+  if (index > -1) {
+    comments.value.splice(index, 1)
+    currentCommentsCount.value--
+    props.post.comments_count = currentCommentsCount.value
+    
+    emit('post-updated', { 
+      id: props.post.id, 
+      comments_count: currentCommentsCount.value 
+    })
+  }
+}
+
+// Initialize interaction status
+onMounted(() => {
+  isLiked.value = props.post.user_liked || false
+  isReposted.value = props.post.user_reposted || false
+  currentLikesCount.value = props.post.likes_count || 0
+  currentCommentsCount.value = props.post.comments_count || 0
+  currentRepostsCount.value = props.post.reposts_count || 0
+  
+  console.log('PostCard mounted:', {
+    postId: props.post.id,
+    canDelete: canDelete.value,
+    currentUserId: userStore.userId,
+    postAuthor: props.post.user_id,
+    isRepost: props.post.is_repost
+  })
+})
+</script>
+
+<style lang="scss" scoped>
+.post-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s;
+  
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// 转发标识样式
+.repost-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f5f7fa;
+  
+  .el-icon {
+    color: #67c23a;
+    font-size: 16px;
+  }
+  
+  .repost-user-link {
+    color: #409EFF;
+    text-decoration: none;
+    font-weight: 600;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  
+  .repost-time {
+    color: #c0c4cc;
+    font-size: 12px;
+    margin-left: auto;
+  }
+}
+
+// 转发评论样式
+.repost-comment {
+  margin-bottom: 16px;
+  
+  .repost-comment-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    
+    .comment-text {
+      flex: 1;
+      color: #303133 !important;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-top: 2px;
+    }
+  }
+}
+
+// 原帖样式
+.original-post {
+  &.is-repost {
+    border: 1px solid #e4e7ed;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fafbfc;
+  }
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    flex: 1;
+    
+    .user-details {
+      .username {
+        font-weight: 600;
+        color: #303133 !important;
+        font-size: 14px;
+      }
+      
+      .time {
+        color: #909399;
+        font-size: 12px;
+      }
+    }
+  }
+  
+  .post-menu {
+    margin-top: -5px;
+    
+    .el-button {
+      color: #909399;
+      
+      &:hover {
+        color: #303133 !important;
+        background: #f5f7fa;
+      }
+    }
+  }
+}
+
+.post-content {
+  .post-title {
+    font-size: 18px;
+    color: #303133 !important;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  
+  .post-description {
+    color: #606266;
+    margin-bottom: 15px;
+    line-height: 1.6;
+  }
+  
+  .post-text {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    
+    .original-post.is-repost & {
+      background: white;
+      border: 1px solid #e4e7ed;
+    }
+    
+    p {
+      color: #303133 !important;
+      line-height: 1.6;
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  }
+  
+  .post-media {
+    margin-bottom: 15px;
+    
+    // Images Section - Smart aspect ratio handling
+    .images-section {
+      margin-bottom: 16px;
+      
+      .images-grid {
+        display: grid;
+        gap: 8px;
+        border-radius: 12px;
+        overflow: hidden;
+        
+        &.single-image {
+          .image-item {
+            .media-image {
+              width: 100%;
+              max-height: 500px;
+              min-height: 200px;
+              height: auto;
+            }
+          }
+        }
+        
+        &.two-images {
+          grid-template-columns: 1fr 1fr;
+          
+          .image-item .media-image {
+            height: 250px;
+            width: 100%;
+          }
+        }
+        
+        &.three-images {
+          grid-template-columns: 1fr 1fr;
+          
+          .image-item:first-child {
+            grid-row: span 2;
+            
+            .media-image {
+              height: 300px;
+              width: 100%;
+            }
+          }
+          
+          .image-item:not(:first-child) .media-image {
+            height: 146px;
+            width: 100%;
+          }
+        }
+        
+        &.four-images {
+          grid-template-columns: 1fr 1fr;
+          
+          .image-item .media-image {
+            height: 180px;
+            width: 100%;
+          }
+        }
+        
+        &.many-images {
+          grid-template-columns: repeat(3, 1fr);
+          
+          .image-item .media-image {
+            height: 150px;
+            width: 100%;
+          }
+        }
+        
+        .image-item {
+          border-radius: 8px;
+          overflow: hidden;
+          background: #f8f9fa;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          
+          .media-image {
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: block;
+            
+            &:hover {
+              transform: scale(1.02);
+            }
+            
+            :deep(.el-image__inner) {
+              object-fit: contain;
+              width: 100%;
+              height: 100%;
+              max-width: 100%;
+              max-height: 100%;
+            }
+            
+            :deep(.el-image__error) {
+              background: #f8f9fa;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #909399;
+              font-size: 14px;
+              width: 100%;
+              height: 100%;
+            }
+          }
+        }
+      }
+    }
+    
+    // Audio Section - Clean and minimal
+    .audio-section {
+      .audio-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        
+        .audio-item {
+          .audio-player {
+            width: 100%;
+            height: 40px;
+            border-radius: 6px;
+            
+            &::-webkit-media-controls-panel {
+              background-color: #f8f9fa;
+              border-radius: 6px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.post-actions {
+  display: flex;
+  gap: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+  
+  .action-button {
+    color: #909399;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    
+    .el-icon {
+      margin-right: 4px;
+    }
+    
+    &:hover {
+      color: #409EFF;
+      transform: translateY(-1px);
+    }
+    
+    &.liked {
+      color: #f56c6c;
+      
+      &:hover {
+        color: #f78989;
+      }
+    }
+    
+    &.share-button {
+      .dropdown-icon {
+        margin-left: 4px;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+.comments-section {
+  margin-top: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+// 删除菜单样式
+:deep(.delete-item) {
+  color: #f56c6c;
+  
+  &:hover {
+    background-color: #fef0f0;
+    color: #f56c6c;
+  }
+  
+  .el-icon {
+    margin-right: 6px;
+  }
+}
+
+// 分享下拉菜单样式
+:deep(.el-dropdown-menu__item) {
+  .el-icon {
+    margin-right: 8px;
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .post-card {
+    padding: 15px;
+  }
+  
+  .original-post.is-repost {
+    padding: 12px !important;
+  }
+  
+  .repost-comment .repost-comment-content {
+    padding: 10px !important;
+  }
+  
+  .post-content .post-media {
+    .images-section .images-grid {
+      &.three-images,
+      &.four-images,
+      &.many-images {
+        grid-template-columns: 1fr !important;
+        
+        .image-item .media-image {
+          height: auto !important;
+          min-height: 200px;
+          max-height: 350px;
+        }
+      }
+      
+      &.single-image .image-item .media-image {
+        max-height: 400px !important;
+        height: auto !important;
+      }
+      
+      &.two-images .image-item .media-image {
+        height: auto !important;
+        min-height: 150px;
+        max-height: 250px;
+      }
+    }
+  }
+  
+  .post-actions {
+    gap: 15px;
+    
+    .action-button {
+      font-size: 12px;
+    }
+  }
+  
+  .comments-section {
+    max-height: 400px;
+  }
+}
+</style>

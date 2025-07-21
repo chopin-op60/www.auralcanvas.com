@@ -7,20 +7,11 @@ class MessageController extends BaseController {
         this.messageService = new MessageService();
     }
 
-    // 获取用户的对话列表 - 修复数据结构
+    // 获取用户的对话列表
     getConversations = this.handleAsync(async (req, res) => {
         try {
-            console.log('Getting conversations for user:', req.user.id);
             const conversations = await this.messageService.getUserConversations(req.user.id);
-            console.log('Found conversations:', conversations.length);
-            
-            // 修复：前端期望的数据格式
-            const response = {
-                conversations: conversations
-            };
-            
-            console.log('Sending conversations response:', response);
-            this.sendSuccess(res, response, 'Conversations retrieved successfully');
+            this.sendSuccess(res, conversations, 'Conversations retrieved successfully');
         } catch (error) {
             console.error('Error getting conversations:', error);
             this.sendError(res, 'Failed to get conversations', 500, error.message);
@@ -33,12 +24,9 @@ class MessageController extends BaseController {
         const { page, limit, offset } = this.getPagination(req);
 
         try {
-            console.log('Getting messages for conversation:', conversationId, 'user:', req.user.id);
-            
             // 检查用户是否有访问权限
             const hasAccess = await this.messageService.hasConversationAccess(conversationId, req.user.id);
             if (!hasAccess) {
-                console.log('Access denied for conversation:', conversationId, 'user:', req.user.id);
                 return this.sendError(res, 'Access denied', 403);
             }
 
@@ -54,7 +42,6 @@ class MessageController extends BaseController {
                 }
             };
 
-            console.log('Sending messages response, count:', result.data.length);
             this.sendSuccess(res, response, 'Messages retrieved successfully');
         } catch (error) {
             console.error('Error getting messages:', error);
@@ -76,8 +63,6 @@ class MessageController extends BaseController {
         }
 
         try {
-            console.log('Sending message to conversation:', conversationId, 'from user:', req.user.id);
-            
             const message = await this.messageService.sendMessage({
                 conversationId,
                 senderId: req.user.id,
@@ -85,7 +70,6 @@ class MessageController extends BaseController {
                 content: content.trim()
             });
 
-            console.log('Message sent successfully:', message.id);
             this.sendSuccess(res, message, 'Message sent successfully', 201);
         } catch (error) {
             console.error('Error sending message:', error);
@@ -107,8 +91,6 @@ class MessageController extends BaseController {
         }
 
         try {
-            console.log('Sharing post:', postId, 'to conversation:', conversationId, 'from user:', req.user.id);
-            
             const message = await this.messageService.sharePostToConversation({
                 conversationId,
                 senderId: req.user.id,
@@ -117,7 +99,6 @@ class MessageController extends BaseController {
                 comment: comment || null
             });
 
-            console.log('Post shared successfully as message:', message.id);
             this.sendSuccess(res, message, 'Post shared successfully', 201);
         } catch (error) {
             console.error('Error sharing post:', error);
@@ -138,14 +119,11 @@ class MessageController extends BaseController {
         }
 
         try {
-            console.log('Creating/getting conversation between:', req.user.id, 'and:', userId);
-            
             const conversation = await this.messageService.createOrGetConversation(
                 req.user.id,
                 parseInt(userId)
             );
 
-            console.log('Conversation created/retrieved:', conversation.id);
             this.sendSuccess(res, { conversation }, 'Conversation created/retrieved successfully', 201);
         } catch (error) {
             console.error('Error creating conversation:', error);
@@ -158,8 +136,6 @@ class MessageController extends BaseController {
         const { conversationId } = req.params;
 
         try {
-            console.log('Marking conversation as read:', conversationId, 'for user:', req.user.id);
-            
             // 检查用户是否有访问权限
             const hasAccess = await this.messageService.hasConversationAccess(conversationId, req.user.id);
             if (!hasAccess) {
@@ -167,7 +143,6 @@ class MessageController extends BaseController {
             }
 
             const count = await this.messageService.markConversationAsRead(conversationId, req.user.id);
-            console.log('Marked', count, 'messages as read');
             this.sendSuccess(res, { markedCount: count }, 'Messages marked as read successfully');
         } catch (error) {
             console.error('Error marking as read:', error);
@@ -178,9 +153,7 @@ class MessageController extends BaseController {
     // 获取未读消息数
     getUnreadCount = this.handleAsync(async (req, res) => {
         try {
-            console.log('Getting unread count for user:', req.user.id);
             const count = await this.messageService.getUnreadCount(req.user.id);
-            console.log('Unread count:', count);
             this.sendSuccess(res, { unreadCount: count }, 'Unread count retrieved successfully');
         } catch (error) {
             console.error('Error getting unread count:', error);

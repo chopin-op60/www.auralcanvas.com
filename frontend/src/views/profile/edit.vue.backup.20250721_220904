@@ -111,6 +111,14 @@
           />
         </el-form-item>
 
+        <el-form-item label="Website" prop="website">
+          <el-input
+            v-model="profileForm.website"
+            placeholder="Your personal website (optional)"
+            maxlength="255"
+          />
+        </el-form-item>
+
         <!-- Actions -->
         <el-form-item class="form-actions">
           <el-button 
@@ -140,7 +148,6 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Picture, User, Upload, Delete, Check, Refresh, ArrowLeft } from '@element-plus/icons-vue'
 import { getUserProfile, updateProfile } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 import { getFileUrl, validateEmail } from '@/utils'
@@ -157,7 +164,8 @@ const profileForm = reactive({
   username: '',
   email: '',
   bio: '',
-  location: ''
+  location: '',
+  website: ''
 })
 
 const profileRules = {
@@ -185,31 +193,24 @@ const coverFile = ref(null)
 // Load current profile data
 const loadProfile = async () => {
   try {
-    console.log('Loading profile data for edit...')
     const response = await getUserProfile()
     const profile = response.data
-    
-    console.log('Profile data received:', profile)
     
     Object.assign(profileForm, {
       username: profile.username,
       email: profile.email,
       bio: profile.bio || '',
-      location: profile.location || ''
+      location: profile.location || '',
+      website: profile.website || ''
     })
     
-    // 修复头像预览
     if (profile.avatar) {
       avatarPreview.value = getFileUrl(profile.avatar)
-      console.log('Avatar preview set to:', avatarPreview.value)
     }
     
-    // 修复封面图片预览
     if (profile.cover_image) {
       coverPreview.value = getFileUrl(profile.cover_image)
-      console.log('Cover preview set to:', coverPreview.value)
     }
-    
   } catch (error) {
     console.error('Failed to load profile:', error)
     ElMessage.error('Failed to load profile data')
@@ -235,7 +236,6 @@ const beforeAvatarUpload = (file) => {
 const handleAvatarChange = (file) => {
   if (!file.raw) return
   
-  console.log('Avatar file changed:', file.raw.name)
   avatarFile.value = file.raw
   avatarPreview.value = URL.createObjectURL(file.raw)
 }
@@ -259,13 +259,11 @@ const beforeCoverUpload = (file) => {
 const handleCoverChange = (file) => {
   if (!file.raw) return
   
-  console.log('Cover file changed:', file.raw.name)
   coverFile.value = file.raw
   coverPreview.value = URL.createObjectURL(file.raw)
 }
 
 const removeCover = () => {
-  console.log('Removing cover image')
   coverFile.value = null
   coverPreview.value = ''
   if (coverUploadRef.value) {
@@ -284,7 +282,7 @@ const submitProfile = async () => {
     
     const formData = new FormData()
     
-    // Add text fields (excluding website)
+    // Add text fields
     Object.keys(profileForm).forEach(key => {
       if (profileForm[key] !== null && profileForm[key] !== undefined) {
         formData.append(key, profileForm[key])
@@ -294,14 +292,11 @@ const submitProfile = async () => {
     // Add files
     if (avatarFile.value) {
       formData.append('avatar', avatarFile.value)
-      console.log('Avatar file added to form data')
     }
     if (coverFile.value) {
       formData.append('cover_image', coverFile.value)
-      console.log('Cover image file added to form data')
     }
 
-    console.log('Submitting profile update...')
     await updateProfile(formData)
     
     // Update user store
@@ -369,29 +364,21 @@ onMounted(() => {
 }
 
 .cover-upload-section {
-  width: 100%; // 确保容器宽度
-  
   .cover-preview {
-    width: 100% !important; // 强制设置宽度
-    min-width: 100% !important; // 防止收缩
     height: 160px;
     background-size: cover;
     background-position: center;
-    background-repeat: no-repeat;
     background-color: #f8f9fa;
     border-radius: 8px;
     position: relative;
     overflow: hidden;
     border: 2px dashed #dcdfe6;
-    display: block; // 确保块级显示
-    box-sizing: border-box; // 包含边框和内边距
     
     .default-cover {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 100%;
       height: 100%;
       color: #909399;
       
@@ -412,7 +399,6 @@ onMounted(() => {
       right: 10px;
       display: flex;
       gap: 8px;
-      z-index: 10;
     }
   }
 }
@@ -424,17 +410,6 @@ onMounted(() => {
   
   .avatar-preview {
     border: 2px solid #e4e7ed;
-  }
-}
-
-// 修复Element Plus表单项可能的宽度限制
-.profile-form {
-  .el-form-item {
-    width: 100%;
-    
-    .el-form-item__content {
-      width: 100%;
-    }
   }
 }
 
@@ -464,10 +439,6 @@ onMounted(() => {
     display: block;
     width: 100%;
     margin: 8px 0;
-  }
-  
-  .cover-upload-section .cover-preview {
-    height: 120px; // 移动端稍微降低高度
   }
 }
 </style>

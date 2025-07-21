@@ -5,7 +5,7 @@ class MessageService extends BaseService {
         super('messages');
     }
 
-    // 获取用户的所有对话 - 修复查询逻辑
+    // 获取用户的所有对话
     async getUserConversations(userId) {
         try {
             const safeUserId = parseInt(userId);
@@ -31,22 +31,15 @@ class MessageService extends BaseService {
                     END
                 )
                 LEFT JOIN messages m ON m.conversation_id = c.id 
-                    AND m.id = (
-                        SELECT m2.id 
-                        FROM messages m2 
-                        WHERE m2.conversation_id = c.id 
-                        ORDER BY m2.created_at DESC 
-                        LIMIT 1
-                    )
+                    AND m.created_at = c.last_message_at
                 LEFT JOIN messages unread_m ON unread_m.conversation_id = c.id 
                     AND unread_m.receiver_id = ? 
                     AND unread_m.is_read = FALSE
                 WHERE c.user1_id = ? OR c.user2_id = ?
-                GROUP BY c.id, c.last_message_at, c.created_at, u.id, u.username, u.avatar, u.bio, m.content, m.message_type
+                GROUP BY c.id, u.id, m.content, m.message_type
                 ORDER BY c.last_message_at DESC
             `;
             
-            console.log('Executing conversations query for user:', safeUserId);
             const [rows] = await this.db.execute(query, [safeUserId, safeUserId, safeUserId, safeUserId]);
             
             const conversations = rows.map(row => ({
@@ -65,13 +58,6 @@ class MessageService extends BaseService {
             }));
             
             console.log('Found conversations:', conversations.length);
-            console.log('Conversations details:', conversations.map(c => ({
-                id: c.id,
-                other_user: c.other_user.username,
-                last_message: c.last_message ? c.last_message.substring(0, 20) + '...' : 'No messages',
-                unread_count: c.unread_count
-            })));
-            
             return conversations;
         } catch (error) {
             console.error('Error in getUserConversations:', error);
@@ -117,10 +103,10 @@ class MessageService extends BaseService {
                 LEFT JOIN users pu ON p.user_id = pu.id
                 WHERE m.conversation_id = ?
                 ORDER BY m.created_at ASC
-                LIMIT ${safeLimit} OFFSET ${safeOffset}
+                LIMIT ${safeLimit}
             `;
             
-            console.log('Executing messages query for conversation:', safeConversationId);
+            console.log('Executing messages query:', query);
             const [messages] = await this.db.execute(query, [safeConversationId]);
             
             // 处理消息数据，分离帖子信息
@@ -389,9 +375,7 @@ class MessageService extends BaseService {
                 [safeConversationId, safeUserId, safeUserId]
             );
 
-            const hasAccess = conversation.length > 0;
-            console.log('Access check for conversation:', safeConversationId, 'user:', safeUserId, 'result:', hasAccess);
-            return hasAccess;
+            return conversation.length > 0;
         } catch (error) {
             console.error('Error in hasConversationAccess:', error);
             throw error;

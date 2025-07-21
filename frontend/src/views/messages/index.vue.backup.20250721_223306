@@ -60,48 +60,27 @@ const activeConversation = computed(() => {
 const loadConversations = async () => {
   conversationsLoading.value = true
   try {
-    console.log('Loading conversations...')
     const response = await getConversations()
-    console.log('API response:', response)
-    
-    if (response.success && response.data) {
-      if (response.data.conversations) {
-        conversations.value = response.data.conversations || []
-        console.log('Conversations loaded:', conversations.value.length)
-        console.log('Conversations data:', conversations.value)
-      } else {
-        // 兼容旧格式
-        conversations.value = response.data || []
-        console.log('Conversations loaded (legacy format):', conversations.value.length)
-      }
-    } else {
-      console.warn('Invalid response format:', response)
-      conversations.value = []
-    }
+    conversations.value = response.data.conversations || []
     
     // 如果路由中有conversation ID，设置为活跃对话
     if (route.params.id) {
-      const conversationId = parseInt(route.params.id)
-      console.log('Setting active conversation from route:', conversationId)
-      activeConversationId.value = conversationId
+      activeConversationId.value = parseInt(route.params.id)
     }
   } catch (error) {
     console.error('Failed to load conversations:', error)
     ElMessage.error('Failed to load conversations')
-    conversations.value = []
   } finally {
     conversationsLoading.value = false
   }
 }
 
 const handleConversationSelected = (conversationId) => {
-  console.log('Conversation selected:', conversationId)
   activeConversationId.value = conversationId
   router.push(`/messages/${conversationId}`)
 }
 
 const handleMessageSent = () => {
-  console.log('Message sent, refreshing conversations...')
   // 刷新对话列表以更新最后消息时间
   loadConversations()
 }

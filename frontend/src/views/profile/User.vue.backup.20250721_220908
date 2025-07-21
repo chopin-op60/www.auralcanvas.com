@@ -50,6 +50,10 @@
               <el-icon><Location /></el-icon>
               <span>{{ user.location }}</span>
             </div>
+            <div v-if="user.website" class="detail-item">
+              <el-icon><Link /></el-icon>
+              <a :href="user.website" target="_blank">{{ user.website }}</a>
+            </div>
             <div class="detail-item">
               <el-icon><Calendar /></el-icon>
               <span>Joined {{ formatDate(user.created_at, 'MMM YYYY') }}</span>
@@ -214,7 +218,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  User, Location, Calendar, Plus, Clock, ChatDotRound, Setting, Tools
+  User, Location, Link, Calendar, Plus, Clock, ChatDotRound, Setting, Tools
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getFileUrl, formatDate } from '@/utils'
@@ -278,7 +282,6 @@ const loadUserProfile = async () => {
     const userId = route.params.id
     const response = await getUser(userId)
     user.value = response.data
-    console.log('User profile loaded:', user.value)
     
     // 如果不是当前用户，检查好友状态和AI代理
     if (!isCurrentUser.value && userStore.isLoggedIn) {
@@ -575,6 +578,15 @@ onMounted(() => {
         
         .el-icon {
           font-size: 16px;
+        }
+        
+        a {
+          color: #409EFF;
+          text-decoration: none;
+          
+          &:hover {
+            text-decoration: underline;
+          }
         }
       }
     }

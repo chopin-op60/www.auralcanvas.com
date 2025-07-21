@@ -39,6 +39,10 @@
               <el-icon><Location /></el-icon>
               <span>{{ profile.location }}</span>
             </div>
+            <div v-if="profile.website" class="meta-item">
+              <el-icon><Link /></el-icon>
+              <a :href="profile.website" target="_blank">{{ profile.website }}</a>
+            </div>
             <div class="meta-item">
               <el-icon><Calendar /></el-icon>
               <span>Joined {{ formatDate(profile.created_at, 'MMMM YYYY') }}</span>
@@ -101,7 +105,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture, User, Location, Calendar, Edit, Setting } from '@element-plus/icons-vue'
+import { Picture, User, Location, Link, Calendar, Edit, Setting } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { getUserProfile } from '@/api/auth'
 import { getUserPosts, getUserLikedPosts } from '@/api/users'
@@ -130,7 +134,6 @@ const loadProfile = async () => {
     loading.value = true
     const response = await getUserProfile()
     profile.value = response.data
-    console.log('Profile loaded:', profile.value)
   } catch (error) {
     console.error('Failed to load profile:', error)
     ElMessage.error('Failed to load profile')
@@ -312,6 +315,15 @@ onMounted(async () => {
         
         .el-icon {
           font-size: 16px;
+        }
+        
+        a {
+          color: #409EFF;
+          text-decoration: none;
+          
+          &:hover {
+            text-decoration: underline;
+          }
         }
       }
     }
