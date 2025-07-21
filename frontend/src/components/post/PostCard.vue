@@ -21,6 +21,8 @@
         <el-avatar 
           :src="getFileUrl(post.repost_user.avatar)" 
           :size="32"
+          class="clickable-avatar"
+          @click="goToUserProfile(post.repost_user.id)"
         >
           <el-icon><User /></el-icon>
         </el-avatar>
@@ -35,11 +37,16 @@
           <el-avatar 
             :src="getFileUrl(post.is_repost ? post.original_user.avatar : post.user_avatar)" 
             :size="40"
+            class="clickable-avatar"
+            @click="goToUserProfile(post.is_repost ? post.original_user.id : post.user_id)"
           >
             <el-icon><User /></el-icon>
           </el-avatar>
           <div class="user-details">
-            <div class="username">
+            <div 
+              class="username clickable-username"
+              @click="goToUserProfile(post.is_repost ? post.original_user.id : post.user_id)"
+            >
               {{ post.is_repost ? post.original_user.username : post.username }}
             </div>
             <div class="time">{{ fromNow(post.created_at) }}</div>
@@ -205,6 +212,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { 
   User, StarFilled, ChatDotSquare, Share, MoreFilled, Delete,
@@ -227,6 +235,7 @@ const props = defineProps({
 
 const emit = defineEmits(['post-deleted', 'post-updated'])
 const userStore = useUserStore()
+const router = useRouter()
 
 // Reactive data
 const likeLoading = ref(false)
@@ -238,6 +247,13 @@ const showShareDialog = ref(false)
 const comments = ref([])
 const commentsPage = ref(1)
 const hasMoreComments = ref(false)
+
+// 头像点击跳转到用户主页
+const goToUserProfile = (userId) => {
+  if (userId) {
+    router.push(`/user/${userId}`)
+  }
+}
 
 // Computed properties - 修复权限判断逻辑
 const canDelete = computed(() => {
@@ -579,6 +595,26 @@ onMounted(() => {
   
   &:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// 可点击头像样式
+.clickable-avatar {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+// 可点击用户名样式
+.clickable-username {
+  cursor: pointer;
+  
+  &:hover {
+    color: #409EFF !important;
+    text-decoration: underline;
   }
 }
 

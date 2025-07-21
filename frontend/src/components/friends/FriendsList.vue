@@ -16,13 +16,23 @@
       <div v-for="friend in friends" :key="friend.id" class="friend-card">
         <el-card class="friend-item" shadow="hover">
           <div class="friend-avatar">
-            <el-avatar :src="getFileUrl(friend.avatar)" :size="60">
+            <el-avatar 
+              :src="getFileUrl(friend.avatar)" 
+              :size="60"
+              class="clickable-avatar"
+              @click="goToUserProfile(friend.id)"
+            >
               <el-icon><User /></el-icon>
             </el-avatar>
           </div>
           
           <div class="friend-info">
-            <h3 class="friend-name">{{ friend.username }}</h3>
+            <h3 
+              class="friend-name clickable-username"
+              @click="goToUserProfile(friend.id)"
+            >
+              {{ friend.username }}
+            </h3>
             <p v-if="friend.bio" class="friend-bio">{{ truncateText(friend.bio, 60) }}</p>
             <p class="friend-since">Friends since {{ formatDate(friend.friendship_date, 'MMM YYYY') }}</p>
           </div>
@@ -32,7 +42,7 @@
               <el-icon><ChatDotRound /></el-icon>
               Message
             </el-button>
-            <el-button @click="$router.push(`/user/${friend.id}`)">
+            <el-button @click="goToUserProfile(friend.id)">
               <el-icon><View /></el-icon>
               Profile
             </el-button>
@@ -48,9 +58,12 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { User, ChatDotRound, View, Delete } from '@element-plus/icons-vue'
 import { getFileUrl, formatDate, truncateText } from '@/utils'
+
+const router = useRouter()
 
 defineProps({
   friends: {
@@ -64,6 +77,13 @@ defineProps({
 })
 
 const emit = defineEmits(['remove-friend', 'chat-with-friend'])
+
+// 跳转到用户个人主页
+const goToUserProfile = (userId) => {
+  if (userId) {
+    router.push(`/user/${userId}`)
+  }
+}
 
 const handleRemoveFriend = async (friend) => {
   try {
@@ -112,6 +132,15 @@ const handleRemoveFriend = async (friend) => {
       
       .friend-avatar {
         margin-bottom: 15px;
+        
+        .clickable-avatar {
+          cursor: pointer;
+          transition: transform 0.2s ease;
+          
+          &:hover {
+            transform: scale(1.05);
+          }
+        }
       }
       
       .friend-info {
@@ -122,6 +151,12 @@ const handleRemoveFriend = async (friend) => {
           margin: 0 0 8px 0;
           color: #303133;
           font-size: 16px;
+          cursor: pointer;
+          
+          &:hover {
+            color: #409EFF;
+            text-decoration: underline;
+          }
         }
         
         .friend-bio {

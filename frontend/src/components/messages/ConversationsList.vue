@@ -21,7 +21,12 @@
         @click="selectConversation(conversation.id)"
       >
         <div class="conversation-avatar">
-          <el-avatar :src="getFileUrl(conversation.other_user.avatar)" :size="45">
+          <el-avatar 
+            :src="getFileUrl(conversation.other_user.avatar)" 
+            :size="45"
+            class="clickable-avatar"
+            @click.stop="goToUserProfile(conversation.other_user.id)"
+          >
             <el-icon><User /></el-icon>
           </el-avatar>
           <span v-if="conversation.unread_count > 0" class="unread-badge">
@@ -31,7 +36,12 @@
         
         <div class="conversation-info">
           <div class="conversation-header">
-            <h4 class="user-name">{{ conversation.other_user.username }}</h4>
+            <h4 
+              class="user-name clickable-username"
+              @click.stop="goToUserProfile(conversation.other_user.id)"
+            >
+              {{ conversation.other_user.username }}
+            </h4>
             <span class="last-time">{{ fromNow(conversation.last_message_at) }}</span>
           </div>
           
@@ -71,6 +81,13 @@ const emit = defineEmits(['conversation-selected'])
 const selectConversation = (conversationId) => {
   emit('conversation-selected', conversationId)
 }
+
+// 跳转到用户个人主页
+const goToUserProfile = (userId) => {
+  if (userId) {
+    router.push(`/user/${userId}`)
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -106,6 +123,15 @@ const selectConversation = (conversationId) => {
         margin-right: 12px;
         flex-shrink: 0;
         
+        .clickable-avatar {
+          cursor: pointer;
+          transition: transform 0.2s ease;
+          
+          &:hover {
+            transform: scale(1.05);
+          }
+        }
+        
         .unread-badge {
           position: absolute;
           top: -5px;
@@ -139,6 +165,12 @@ const selectConversation = (conversationId) => {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            cursor: pointer;
+            
+            &:hover {
+              color: #409EFF;
+              text-decoration: underline;
+            }
           }
           
           .last-time {

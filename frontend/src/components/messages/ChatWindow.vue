@@ -3,17 +3,27 @@
     <!-- Chat Header -->
     <div class="chat-header">
       <div class="user-info">
-        <el-avatar :src="getFileUrl(conversation?.other_user?.avatar)" :size="35">
+        <el-avatar 
+          :src="getFileUrl(conversation?.other_user?.avatar)" 
+          :size="35"
+          class="clickable-avatar"
+          @click="goToUserProfile(conversation?.other_user?.id)"
+        >
           <el-icon><User /></el-icon>
         </el-avatar>
         <div class="user-details">
-          <h3 class="username">{{ conversation?.other_user?.username }}</h3>
+          <h3 
+            class="username clickable-username"
+            @click="goToUserProfile(conversation?.other_user?.id)"
+          >
+            {{ conversation?.other_user?.username }}
+          </h3>
           <span class="status">Online</span>
         </div>
       </div>
       
       <div class="chat-actions">
-        <el-button type="text" @click="$router.push(`/user/${conversation?.other_user?.id}`)">
+        <el-button type="text" @click="goToUserProfile(conversation?.other_user?.id)">
           <el-icon><User /></el-icon>
           Profile
         </el-button>
@@ -58,10 +68,20 @@
               <div v-if="message.shared_post" class="post-content">
                 <!-- 帖子作者信息 -->
                 <div class="post-author">
-                  <el-avatar :src="getFileUrl(message.shared_post.author?.avatar)" :size="24">
+                  <el-avatar 
+                    :src="getFileUrl(message.shared_post.author?.avatar)" 
+                    :size="24"
+                    class="clickable-avatar"
+                    @click.stop="goToUserProfile(message.shared_post.author?.id)"
+                  >
                     <el-icon><User /></el-icon>
                   </el-avatar>
-                  <span class="author-name">{{ message.shared_post.author?.username }}</span>
+                  <span 
+                    class="author-name clickable-username"
+                    @click.stop="goToUserProfile(message.shared_post.author?.id)"
+                  >
+                    {{ message.shared_post.author?.username }}
+                  </span>
                   <span class="post-time">{{ fromNow(message.shared_post.created_at) }}</span>
                 </div>
                 
@@ -171,6 +191,13 @@ const messages = ref([])
 const messagesLoading = ref(false)
 const newMessage = ref('')
 const sending = ref(false)
+
+// 跳转到用户个人主页
+const goToUserProfile = (userId) => {
+  if (userId) {
+    router.push(`/user/${userId}`)
+  }
+}
 
 const loadMessages = async () => {
   if (!props.conversationId) return
@@ -286,11 +313,26 @@ onMounted(() => {
     align-items: center;
     gap: 12px;
     
+    .clickable-avatar {
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.05);
+      }
+    }
+    
     .user-details {
       .username {
         margin: 0 0 2px 0;
         font-size: 16px;
         color: #303133;
+        cursor: pointer;
+        
+        &:hover {
+          color: #409EFF;
+          text-decoration: underline;
+        }
       }
       
       .status {
@@ -395,8 +437,8 @@ onMounted(() => {
               margin: 0 0 2px 0;
               font-size: 14px;
               line-height: 1.4;
-            
-              color: #303133 !important;}
+              color: #303133 !important;
+            }
             
             .comment-time {
               font-size: 11px;
@@ -429,10 +471,25 @@ onMounted(() => {
               gap: 8px;
               margin-bottom: 12px;
               
+              .clickable-avatar {
+                cursor: pointer;
+                transition: transform 0.2s ease;
+                
+                &:hover {
+                  transform: scale(1.05);
+                }
+              }
+              
               .author-name {
                 font-weight: 600;
                 color: #303133;
                 font-size: 13px;
+                cursor: pointer;
+                
+                &:hover {
+                  color: #409EFF;
+                  text-decoration: underline;
+                }
               }
               
               .post-time {

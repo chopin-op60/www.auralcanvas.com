@@ -51,10 +51,11 @@
             </el-badge>
             
             <el-dropdown>
-              <div class="user-avatar">
+              <div class="user-avatar" @click="goToMyProfile">
                 <el-avatar 
                   :src="userStore.avatar ? getFileUrl(userStore.avatar) : null"
                   :size="32"
+                  class="clickable-avatar"
                 >
                   <el-icon><User /></el-icon>
                 </el-avatar>
@@ -136,6 +137,11 @@ const appStore = useAppStore()
 const searchKeyword = ref('')
 const unreadCount = ref(0)
 const friendRequestCount = ref(0)
+
+// 点击头像跳转到个人主页
+const goToMyProfile = () => {
+  router.push('/profile')
+}
 
 // Search handling
 const handleSearch = () => {
@@ -267,6 +273,15 @@ onMounted(() => {
       
       &:hover {
         background-color: #f5f7fa;
+      }
+      
+      .clickable-avatar {
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        
+        &:hover {
+          transform: scale(1.05);
+        }
       }
       
       .username {

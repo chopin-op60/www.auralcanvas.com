@@ -24,7 +24,6 @@ class PostService extends BaseService {
                     (
                         SELECT 
                             p.id,
-                            p.user_id,
                             p.user_id as original_user_id,
                             p.title,
                             p.description,
@@ -54,7 +53,6 @@ class PostService extends BaseService {
                     (
                         SELECT 
                             p.id,
-                            p.user_id,
                             p.user_id as original_user_id,
                             p.title,
                             p.description,
@@ -92,7 +90,6 @@ class PostService extends BaseService {
                     (
                         SELECT 
                             p.id,
-                            p.user_id,
                             p.user_id as original_user_id,
                             p.title,
                             p.description,
@@ -121,7 +118,6 @@ class PostService extends BaseService {
                     (
                         SELECT 
                             p.id,
-                            p.user_id,
                             p.user_id as original_user_id,
                             p.title,
                             p.description,
