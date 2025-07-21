@@ -31,122 +31,28 @@
             @post-updated="handlePostUpdated"
           />
         </el-tab-pane>
-        <el-tab-pane :label="searchTabLabel" name="search" v-if="isSearchMode">
-          <div class="search-results-header">
-            <h3>Search Results for "{{ currentSearchKeyword }}"</h3>
-            <el-button type="text" @click="clearSearch" class="clear-search-btn">
-              <el-icon><Close /></el-icon>
-              Clear Search
-            </el-button>
-          </div>
-          <PostList 
-            :posts="posts" 
-            :loading="loading" 
-            @post-deleted="handlePostDeleted"
-            @post-updated="handlePostUpdated"
-          />
-        </el-tab-pane>
       </el-tabs>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import PostList from '@/components/post/PostList.vue'
-import { getPostList, searchPosts } from '@/api/posts'
-import { Close } from '@element-plus/icons-vue'
+import { getPostList } from '@/api/posts'
 
-const route = useRoute()
-const router = useRouter()
 const userStore = useUserStore()
 const activeTab = ref('latest')
 const posts = ref([])
 const loading = ref(false)
-const currentSearchKeyword = ref('')
-
-// Search mode detection
-const isSearchMode = computed(() => currentSearchKeyword.value !== '')
-const searchTabLabel = computed(() => 
-  currentSearchKeyword.value ? `Search: ${currentSearchKeyword.value}` : 'Search'
-)
-
-// Watch route changes to handle search from header
-watch(
-  () => route.query,
-  (newQuery) => {
-    if (newQuery.tab === 'search' && newQuery.q) {
-      currentSearchKeyword.value = newQuery.q
-      activeTab.value = 'search'
-      handleSearch(newQuery.q)
-    } else if (activeTab.value === 'search' && !newQuery.q) {
-      clearSearch()
-    }
-  },
-  { immediate: true }
-)
-
-// Handle search
-const handleSearch = async (keyword) => {
-  console.log('Searching for:', keyword)
-  loading.value = true
-  
-  try {
-    const params = {
-      q: keyword,
-      page: 1,
-      limit: 20
-    }
-    
-    const response = await searchPosts(params)
-    console.log('Search API response:', response)
-    
-    if (response.success && response.data) {
-      posts.value = response.data.posts || []
-      console.log('Search results:', posts.value.length)
-      
-      if (posts.value.length === 0) {
-        ElMessage.info(`No posts found for "${keyword}"`)
-      }
-    } else {
-      console.warn('Invalid search response format:', response)
-      posts.value = []
-    }
-  } catch (error) {
-    console.error('Failed to search posts:', error)
-    ElMessage.error('Search failed, please try again')
-    posts.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-// Clear search
-const clearSearch = () => {
-  currentSearchKeyword.value = ''
-  activeTab.value = 'latest'
-  router.push('/home')
-  loadPosts('latest')
-}
 
 // Switch tabs
 const handleTabChange = async (tab) => {
   console.log('Switching to tab:', tab)
   activeTab.value = tab
-  
-  if (tab === 'search') {
-    // If switching to search tab but no keyword, do nothing
-    if (!currentSearchKeyword.value) {
-      activeTab.value = 'latest'
-      return
-    }
-    await handleSearch(currentSearchKeyword.value)
-  } else {
-    await loadPosts(tab)
-  }
+  await loadPosts(tab)
 }
 
 // Load posts list
@@ -204,11 +110,7 @@ const handlePostDeleted = (deletedPostId) => {
   
   // 如果列表变空，重新加载
   if (posts.value.length === 0) {
-    if (isSearchMode.value) {
-      handleSearch(currentSearchKeyword.value)
-    } else {
-      loadPosts(activeTab.value)
-    }
+    loadPosts(activeTab.value)
   }
 }
 
@@ -225,14 +127,7 @@ const handlePostUpdated = (updateData) => {
 }
 
 onMounted(() => {
-  // Check if there's a search query in URL
-  if (route.query.tab === 'search' && route.query.q) {
-    currentSearchKeyword.value = route.query.q
-    activeTab.value = 'search'
-    handleSearch(route.query.q)
-  } else {
-    loadPosts('latest')
-  }
+  loadPosts('latest')
 })
 </script>
 
@@ -271,29 +166,6 @@ onMounted(() => {
   min-height: 400px;
 }
 
-.search-results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 0 20px 0;
-  border-bottom: 1px solid #ebeef5;
-  margin-bottom: 20px;
-  
-  h3 {
-    margin: 0;
-    color: #303133;
-    font-size: 18px;
-  }
-  
-  .clear-search-btn {
-    color: #909399;
-    
-    &:hover {
-      color: #f56c6c;
-    }
-  }
-}
-
 :deep(.el-tabs__content) {
   padding-top: 20px;
 }
@@ -318,16 +190,6 @@ onMounted(() => {
   
   .content-tabs {
     padding: 15px;
-  }
-  
-  .search-results-header {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-    
-    h3 {
-      font-size: 16px;
-    }
   }
 }
 </style>

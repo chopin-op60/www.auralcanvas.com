@@ -8,10 +8,10 @@ const { upload, debugUpload } = require('../utils/fileUpload');
 router.get('/test', (req, res) => {
     res.json({ 
         success: true,
-        message: 'Mixed-content Posts API with Search and Repost support is ready!',
+        message: 'Mixed-content Posts API with Repost support is ready!',
         data: { 
-            message: 'Posts now support mixed content with search, likes, comments and reposts',
-            features: ['Multi-file upload', 'Mixed content types', 'Media management', 'Search', 'Likes', 'Comments', 'Reposts'],
+            message: 'Posts now support mixed content with likes, comments and reposts',
+            features: ['Multi-file upload', 'Mixed content types', 'Media management', 'Likes', 'Comments', 'Reposts'],
             supportedFormats: {
                 images: ['JPEG', 'PNG', 'GIF', 'WebP'],
                 audio: ['MP3', 'WAV', 'M4A', 'OGG', 'FLAC']
@@ -21,7 +21,6 @@ router.get('/test', (req, res) => {
     });
 });
 
-router.get('/search', PostController.searchPosts);
 router.get('/', PostController.getPosts);
 router.get('/:id', PostController.getPost);
 

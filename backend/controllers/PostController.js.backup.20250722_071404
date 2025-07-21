@@ -87,51 +87,6 @@ class PostController extends BaseController {
         }
     });
 
-    // Search posts
-    searchPosts = this.handleAsync(async (req, res) => {
-        const { page, limit, offset } = this.getPagination(req);
-        const { q: keyword } = req.query;
-
-        if (!keyword || !keyword.trim()) {
-            return this.sendError(res, 'Search keyword is required', 400);
-        }
-
-        try {
-            const result = await this.postService.searchPosts(keyword.trim(), offset, limit);
-            
-            // If user is authenticated, get their interaction status
-            if (req.user && req.user.id) {
-                const postIds = result.data.map(post => post.id);
-                const [likeStatuses, repostStatuses] = await Promise.all([
-                    this.likeService.getUserLikeStatusBatch(postIds, req.user.id),
-                    this.repostService.getUserRepostStatusBatch(postIds, req.user.id)
-                ]);
-                
-                // Add interaction status to each post
-                result.data.forEach(post => {
-                    post.user_liked = likeStatuses[post.id] || false;
-                    post.user_reposted = repostStatuses[post.id] || false;
-                });
-            }
-            
-            const response = {
-                posts: result.data,
-                pagination: {
-                    page,
-                    limit,
-                    total: result.total,
-                    totalPages: Math.ceil(result.total / limit)
-                },
-                keyword: keyword.trim()
-            };
-
-            this.sendSuccess(res, response, `Found ${result.total} posts matching "${keyword.trim()}"`);
-        } catch (error) {
-            console.error('Search posts error:', error);
-            this.sendError(res, 'Failed to search posts', 500, error.message);
-        }
-    });
-
     // Get single post details
     getPost = this.handleAsync(async (req, res) => {
         const { id } = req.params;

@@ -19,10 +19,9 @@
         <div class="header-center">
           <el-input
             v-model="searchKeyword"
-            placeholder="Search posts..."
+            placeholder="Search content or users..."
             class="search-input"
             @keyup.enter="handleSearch"
-            clearable
           >
             <template #prefix>
               <el-icon><Search /></el-icon>
@@ -146,19 +145,10 @@ const goToMyProfile = () => {
 
 // Search handling
 const handleSearch = () => {
-  if (!searchKeyword.value.trim()) {
-    ElMessage.warning('Please enter a search keyword')
-    return
-  }
+  if (!searchKeyword.value.trim()) return
   
-  // Navigate to home with search query
-  router.push({
-    path: '/home',
-    query: { 
-      tab: 'search',
-      q: searchKeyword.value.trim()
-    }
-  })
+  // TODO: Implement search functionality
+  ElMessage.info('Search feature coming soon...')
 }
 
 // Create post

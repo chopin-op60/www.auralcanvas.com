@@ -9,15 +9,6 @@ export function getPostList(params) {
   })
 }
 
-// 搜索帖子
-export function searchPosts(params) {
-  return request({
-    url: '/posts/search',
-    method: 'get',
-    params
-  })
-}
-
 // 获取单个帖子
 export function getPost(id) {
   return request({
