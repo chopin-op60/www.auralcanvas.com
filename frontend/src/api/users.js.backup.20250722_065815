@@ -34,11 +34,3 @@ export function searchUsers(params) {
     params
   })
 }
-
-// 检查用户AI代理可用性
-export function checkUserAIAgent(userId) {
-  return request({
-    url: `/users/${userId}/ai-availability`,
-    method: 'get'
-  })
-}

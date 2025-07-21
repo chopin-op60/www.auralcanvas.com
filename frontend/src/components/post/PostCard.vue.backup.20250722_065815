@@ -18,12 +18,14 @@
     <!-- 转发评论 -->
     <div v-if="post.is_repost && post.repost_comment" class="repost-comment">
       <div class="repost-comment-content">
-        <AvatarWithAI 
-          :userId="post.repost_user.id"
-          :avatarUrl="post.repost_user.avatar"
-          :username="post.repost_user.username"
+        <el-avatar 
+          :src="getFileUrl(post.repost_user.avatar)" 
           :size="32"
-        />
+          class="clickable-avatar"
+          @click="goToUserProfile(post.repost_user.id)"
+        >
+          <el-icon><User /></el-icon>
+        </el-avatar>
         <div class="comment-text">{{ post.repost_comment }}</div>
       </div>
     </div>
@@ -32,12 +34,14 @@
     <div class="original-post" :class="{ 'is-repost': post.is_repost }">
       <div class="post-header">
         <div class="user-info">
-          <AvatarWithAI 
-            :userId="post.is_repost ? post.original_user.id : post.user_id"
-            :avatarUrl="post.is_repost ? post.original_user.avatar : post.user_avatar"
-            :username="post.is_repost ? post.original_user.username : post.username"
+          <el-avatar 
+            :src="getFileUrl(post.is_repost ? post.original_user.avatar : post.user_avatar)" 
             :size="40"
-          />
+            class="clickable-avatar"
+            @click="goToUserProfile(post.is_repost ? post.original_user.id : post.user_id)"
+          >
+            <el-icon><User /></el-icon>
+          </el-avatar>
           <div class="user-details">
             <div 
               class="username clickable-username"
@@ -221,7 +225,6 @@ import CommentForm from './CommentForm.vue'
 import CommentList from './CommentList.vue'
 import RepostDialog from './RepostDialog.vue'
 import ShareToFriendDialog from './ShareToFriendDialog.vue'
-import AvatarWithAI from './AvatarWithAI.vue'
 
 const props = defineProps({
   post: {
@@ -592,6 +595,16 @@ onMounted(() => {
   
   &:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// 可点击头像样式
+.clickable-avatar {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.05);
   }
 }
 

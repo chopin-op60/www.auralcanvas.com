@@ -2,6 +2,7 @@ const BaseController = require('./BaseController');
 const UserService = require('../services/UserService');
 const PostService = require('../services/PostService');
 const LikeService = require('../services/LikeService');
+const AIAgentService = require('../services/ai/AIAgentService');
 
 class UserController extends BaseController {
     constructor() {
@@ -9,6 +10,7 @@ class UserController extends BaseController {
         this.userService = new UserService();
         this.postService = new PostService();
         this.likeService = new LikeService();
+        this.aiAgentService = new AIAgentService();
     }
 
     // 获取用户信息
@@ -83,6 +85,47 @@ class UserController extends BaseController {
         } catch (error) {
             console.error('Error getting user liked posts:', error);
             this.sendError(res, 'Failed to get liked posts', 500, error.message);
+        }
+    });
+
+    // 检查用户AI代理可用性（新增接口）
+    checkUserAIAvailability = this.handleAsync(async (req, res) => {
+        const { id } = req.params;
+        const currentUserId = req.user?.id;
+
+        try {
+            // 检查访问权限
+            const canAccess = await this.aiAgentService.canAccessAgent(parseInt(id), currentUserId);
+            
+            if (!canAccess) {
+                return this.sendSuccess(res, {
+                    hasActiveAgent: false,
+                    agentInfo: null
+                }, 'AI agent not accessible');
+            }
+
+            // 获取代理信息
+            const agent = await this.aiAgentService.getUserAgent(id);
+            
+            const hasActiveAgent = agent && agent.status === 'active' && agent.external_script_code;
+            
+            const response = {
+                hasActiveAgent,
+                agentInfo: hasActiveAgent ? {
+                    agent_name: agent.agent_name,
+                    agent_description: agent.agent_description,
+                    privacy_level: agent.privacy_level
+                } : null
+            };
+
+            this.sendSuccess(res, response, 'AI availability checked');
+        } catch (error) {
+            console.error('Error checking AI availability:', error);
+            // 返回无可用Agent，不报错
+            this.sendSuccess(res, {
+                hasActiveAgent: false,
+                agentInfo: null
+            }, 'AI agent not available');
         }
     });
 
