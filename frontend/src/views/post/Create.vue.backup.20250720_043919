@@ -47,25 +47,6 @@
 
         <el-form-item label="Media Files">
           <div class="media-upload-section">
-            <!-- AI Image Generation Helper Button -->
-            <div class="ai-helper-section">
-              <el-button
-                type="primary"
-                size="large"
-                @click="openImageHelper"
-                class="ai-helper-button"
-                :icon="MagicStick"
-              >
-                <el-icon><MagicStick /></el-icon>
-                AI Image Generation Helper
-              </el-button>
-              <p class="ai-helper-tip">
-                Need images for your post? Let AI help you generate custom images and provide creative suggestions!
-              </p>
-            </div>
-
-            <el-divider content-position="left">Upload Files</el-divider>
-
             <el-upload
               ref="uploadRef"
               class="media-uploader"
@@ -177,9 +158,6 @@
         </el-form-item>
       </el-form>
     </div>
-
-    <!-- AI Image Generation Helper Dialog -->
-    <ImageGenerationHelper v-model="imageHelperVisible" />
   </div>
 </template>
 
@@ -188,12 +166,10 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  UploadFilled, Upload, Refresh, ArrowLeft, Close, Microphone, MagicStick
+  UploadFilled, Upload, Refresh, ArrowLeft, Close, Microphone
 } from '@element-plus/icons-vue'
 import { createPost } from '@/api/posts'
-import { logImageHelperUsage } from '@/api/ai'
 import { formatFileSize } from '@/utils'
-import ImageGenerationHelper from '@/components/ai/ImageGenerationHelper.vue'
 
 const router = useRouter()
 
@@ -201,7 +177,6 @@ const postFormRef = ref()
 const uploadRef = ref()
 const submitting = ref(false)
 const uploadedFiles = ref([])
-const imageHelperVisible = ref(false)
 
 // Form data
 const postForm = reactive({
@@ -237,19 +212,6 @@ const isImageFile = (file) => {
 const isAudioFile = (file) => {
   return file.type?.startsWith('audio/') || 
          /\.(mp3|wav|m4a|ogg|flac)$/i.test(file.name);
-}
-
-// Open AI Image Generation Helper
-const openImageHelper = async () => {
-  try {
-    // 记录使用情况
-    await logImageHelperUsage()
-  } catch (error) {
-    console.log('Failed to log image helper usage:', error)
-  }
-  
-  imageHelperVisible.value = true
-  ElMessage.success('AI Image Generation Helper opened!')
 }
 
 // File upload handlers
@@ -457,44 +419,6 @@ const resetForm = () => {
 }
 
 .media-upload-section {
-  .ai-helper-section {
-    text-align: center;
-    margin-bottom: 30px;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    color: white;
-    
-    .ai-helper-button {
-      font-size: 16px;
-      padding: 16px 32px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      
-      &:hover {
-        background: rgba(255, 255, 255, 0.25);
-        border-color: rgba(255, 255, 255, 0.5);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-      }
-      
-      .el-icon {
-        margin-right: 8px;
-        font-size: 18px;
-      }
-    }
-    
-    .ai-helper-tip {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.4;
-      opacity: 0.9;
-    }
-  }
-  
   .media-uploader {
     margin-bottom: 20px;
     
@@ -648,14 +572,6 @@ const resetForm = () => {
   
   .create-container {
     padding: 25px 20px;
-  }
-  
-  .ai-helper-section {
-    .ai-helper-button {
-      width: 100%;
-      font-size: 14px;
-      padding: 12px 24px;
-    }
   }
   
   .files-grid {

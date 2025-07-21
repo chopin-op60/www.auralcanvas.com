@@ -83,19 +83,3 @@ export function getUserAgent(userId) {
     method: 'get'
   })
 }
-
-// 图片生成助手相关API
-export function getImageGenerationHelper() {
-  return request({
-    url: '/ai/image-helper/info',
-    method: 'get'
-  })
-}
-
-// 记录图片生成助手使用
-export function logImageHelperUsage() {
-  return request({
-    url: '/ai/image-helper/usage',
-    method: 'post'
-  })
-}

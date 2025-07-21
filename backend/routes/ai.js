@@ -38,3 +38,27 @@ router.get('/agents/public', AIController.getPublicAgents);
 router.get('/agents/user/:userId', auth, AIController.getUserAgent);
 
 module.exports = router;
+
+// 图片生成助手相关路由
+router.get('/image-helper/info', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            name: 'AI Image Generation Helper',
+            description: 'AI assistant for generating images and creative suggestions',
+            features: ['Image generation', 'Creative prompts', 'Style suggestions'],
+            platform: 'xingyunlink.com'
+        },
+        message: 'Image helper info retrieved'
+    });
+});
+
+router.post('/image-helper/usage', auth, (req, res) => {
+    // 这里可以记录用户使用AI图片助手的次数等
+    console.log(`User ${req.user.id} used AI Image Generation Helper at ${new Date().toISOString()}`);
+    
+    res.json({
+        success: true,
+        message: 'Usage logged'
+    });
+});

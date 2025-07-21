@@ -1,0 +1,21 @@
+[0;1;32m●[0m mysql.service - MySQL Community Server
+     Loaded: loaded (]8;;file://iZ0xi67er666qh4ht30orrZ/usr/lib/systemd/system/mysql.service/usr/lib/systemd/system/mysql.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (running)[0m since Thu 2025-07-10 11:22:57 CST; 1 week 2 days ago
+   Main PID: 1232 (mysqld)
+     Status: "[0;1;36mServer is operational[0m"
+      Tasks: 46 (limit: 8646)
+     Memory: 497.2M (peak: 497.9M)
+        CPU: 1h 53.545s
+     CGroup: /system.slice/mysql.service
+             └─[0;38;5;245m1232 /usr/sbin/mysqld[0m
+
+Jul 10 11:22:55 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:55.348861Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.42-0ubuntu0.24.04.1) starting as process 1232
+Jul 10 11:22:55 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:55.414335Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+Jul 10 11:22:56 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:56.454910Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:57.064833Z 0 [System] [MY-010229] [Server] Starting XA crash recovery...
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:57.104063Z 0 [System] [MY-010232] [Server] XA crash recovery finished.
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:57.205400Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:57.205514Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:57.289825Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ mysqld[1232]: 2025-07-10T03:22:57.290238Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.42-0ubuntu0.24.04.1'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  (Ubuntu).
+Jul 10 11:22:57 iZ0xi67er666qh4ht30orrZ systemd[1]: Started mysql.service - MySQL Community Server.
