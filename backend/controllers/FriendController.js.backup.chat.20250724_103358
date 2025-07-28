@@ -7,7 +7,7 @@ class FriendController extends BaseController {
         this.friendService = new FriendService();
     }
 
-    // 搜索用户（添加好友时使用）
+    // 搜索用户（添加好友时使用）- 重点修复
     searchUsers = this.handleAsync(async (req, res) => {
         console.log('=== searchUsers called ===', { 
             query: req.query, 
@@ -17,6 +17,7 @@ class FriendController extends BaseController {
 
         const { keyword } = req.query;
         
+        // 确保分页参数是正确的数字类型
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
@@ -66,6 +67,7 @@ class FriendController extends BaseController {
         }
     });
 
+    // 其他方法保持不变
     getFriends = this.handleAsync(async (req, res) => {
         try {
             const friends = await this.friendService.getFriendsList(req.user.id);
@@ -120,21 +122,12 @@ class FriendController extends BaseController {
         }
     });
 
-    // 🔥 增强的删除好友功能
     removeFriend = this.handleAsync(async (req, res) => {
         const { friendId } = req.params;
-        
         try {
-            console.log('Removing friend:', friendId, 'for user:', req.user.id);
-            
-            const result = await this.friendService.removeFriend(req.user.id, friendId);
-            
-            console.log('Remove friend result:', result);
-            
-            // 返回详细的删除结果
-            this.sendSuccess(res, result, 'Friend removed successfully');
+            await this.friendService.removeFriend(req.user.id, friendId);
+            this.sendSuccess(res, null, 'Friend removed successfully');
         } catch (error) {
-            console.error('Error in removeFriend:', error);
             this.sendError(res, error.message, 400, error.message);
         }
     });

@@ -1,0 +1,360 @@
+<template>
+  <div class="post-list">
+    <div v-if="loading" class="loading-container">
+      <div class="masonry-skeleton">
+        <div v-for="i in 12" :key="i" class="skeleton-item">
+          <el-skeleton :rows="3" animated />
+        </div>
+      </div>
+    </div>
+    
+    <div v-else-if="posts.length === 0" class="empty-container">
+      <el-empty description="No content yet" :image-size="120">
+        <template #image>
+          <div class="empty-image">📝</div>
+        </template>
+        <el-button type="primary" @click="$router.push('/post/create')" size="large">
+          <el-icon><Plus /></el-icon>
+          Create Your First Post
+        </el-button>
+      </el-empty>
+    </div>
+    
+    <div v-else class="posts-masonry-container">
+      <!-- 三列瀑布流布局 -->
+      <div 
+        ref="masonryContainer" 
+        class="masonry-grid"
+        :class="`columns-${currentColumns}`"
+      >
+        <div
+          v-for="(column, columnIndex) in columnPosts"
+          :key="`column-${columnIndex}`"
+          class="masonry-column"
+        >
+          <div
+            v-for="post in column"
+            :key="post.id"
+            class="masonry-item"
+            :style="{ animationDelay: `${post.animationDelay}ms` }"
+          >
+            <PostCard 
+              :post="post" 
+              @post-deleted="handlePostDeleted"
+              @post-updated="handlePostUpdated"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import PostCard from './PostCard.vue'
+import { Plus } from '@element-plus/icons-vue'
+
+const props = defineProps({
+  posts: {
+    type: Array,
+    default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['post-deleted', 'post-updated'])
+
+// 响应式列数
+const masonryContainer = ref(null)
+const screenWidth = ref(window.innerWidth)
+const currentColumns = ref(3)
+
+// 根据屏幕宽度计算列数
+const calculateColumns = () => {
+  const width = screenWidth.value
+  if (width < 768) return 1        // 手机单列
+  if (width < 1200) return 2       // 平板双列  
+  if (width < 1600) return 3       // 桌面三列
+  return 3                         // 大屏保持三列
+}
+
+// 瀑布流列数据
+const columnPosts = computed(() => {
+  const columns = currentColumns.value
+  const result = Array.from({ length: columns }, () => [])
+  const columnHeights = new Array(columns).fill(0)
+  
+  props.posts.forEach((post, index) => {
+    // 计算帖子预估高度（用于瀑布流布局）
+    const estimatedHeight = calculatePostHeight(post)
+    
+    // 找到当前最短的列
+    const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights))
+    
+    // 添加动画延迟
+    const postWithDelay = {
+      ...post,
+      animationDelay: index * 100
+    }
+    
+    // 将帖子分配到最短列
+    result[shortestColumnIndex].push(postWithDelay)
+    columnHeights[shortestColumnIndex] += estimatedHeight
+  })
+  
+  return result
+})
+
+// 计算帖子预估高度（基于内容类型）
+const calculatePostHeight = (post) => {
+  let height = 200 // 基础高度：头部+标题+操作栏
+  
+  // 文字内容
+  if (post.content_text) {
+    const textLines = Math.ceil(post.content_text.length / 50)
+    height += Math.min(textLines * 24, 150) // 最大6行文字
+  }
+  
+  // 图片内容
+  if (post.media && post.media.length > 0) {
+    const imageCount = post.media.filter(m => m.media_type === 'image').length
+    if (imageCount > 0) {
+      if (imageCount === 1) height += 300
+      else if (imageCount === 2) height += 250
+      else if (imageCount === 3) height += 300
+      else height += 200
+    }
+    
+    // 音频内容
+    const audioCount = post.media.filter(m => m.media_type === 'audio').length
+    height += audioCount * 50
+  }
+  
+  // 转发内容额外高度
+  if (post.is_repost) {
+    height += 80
+    if (post.repost_comment) height += 60
+  }
+  
+  return height
+}
+
+// 窗口大小变化监听
+const handleResize = () => {
+  screenWidth.value = window.innerWidth
+  const newColumns = calculateColumns()
+  if (newColumns !== currentColumns.value) {
+    currentColumns.value = newColumns
+  }
+}
+
+// 传递事件到父组件
+const handlePostDeleted = (postId) => {
+  console.log('PostList: Handling post deletion:', postId)
+  emit('post-deleted', postId)
+}
+
+const handlePostUpdated = (updateData) => {
+  console.log('PostList: Handling post update:', updateData)
+  emit('post-updated', updateData)
+}
+
+// 监听posts变化重新布局
+watch(() => props.posts, () => {
+  nextTick(() => {
+    // 帖子列表变化后重新计算布局
+    console.log('Posts updated, recalculating masonry layout')
+  })
+}, { deep: true })
+
+onMounted(() => {
+  currentColumns.value = calculateColumns()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
+</script>
+
+<style lang="scss" scoped>
+.post-list {
+  width: 100%;
+}
+
+// 加载状态
+.loading-container {
+  .masonry-skeleton {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    
+    .skeleton-item {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    // 响应式骨架屏
+    @media (max-width: 1200px) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+}
+
+// 空状态
+.empty-container {
+  padding: 80px 20px;
+  text-align: center;
+  
+  .empty-image {
+    font-size: 60px;
+    margin-bottom: 16px;
+    opacity: 0.6;
+  }
+}
+
+// 瀑布流容器
+.posts-masonry-container {
+  width: 100%;
+  
+  .masonry-grid {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    
+    &.columns-1 {
+      .masonry-column {
+        width: 100%;
+      }
+    }
+    
+    &.columns-2 {
+      .masonry-column {
+        width: calc(50% - 10px);
+      }
+    }
+    
+    &.columns-3 {
+      .masonry-column {
+        width: calc(33.333% - 14px);
+      }
+    }
+    
+    .masonry-column {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      
+      .masonry-item {
+        width: 100%;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.6s ease forwards;
+        
+        // 悬停效果
+        &:hover {
+          transform: translateY(-2px);
+          transition: transform 0.3s ease;
+        }
+      }
+    }
+  }
+}
+
+// 入场动画
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 响应式布局
+@media (max-width: 1400px) {
+  .posts-masonry-container {
+    .masonry-grid {
+      gap: 16px;
+      
+      .masonry-column {
+        gap: 16px;
+        
+        &.columns-3 {
+          width: calc(33.333% - 11px);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1200px) {
+  .posts-masonry-container {
+    .masonry-grid {
+      gap: 16px;
+      
+      .masonry-column {
+        gap: 16px;
+        
+        &.columns-2 {
+          width: calc(50% - 8px);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .posts-masonry-container {
+    .masonry-grid {
+      gap: 12px;
+      
+      .masonry-column {
+        gap: 12px;
+        width: 100% !important;
+      }
+    }
+  }
+  
+  .loading-container {
+    .masonry-skeleton {
+      gap: 12px;
+    }
+  }
+  
+  .empty-container {
+    padding: 60px 16px;
+    
+    .empty-image {
+      font-size: 48px;
+    }
+  }
+}
+
+// 平滑过渡效果
+.masonry-grid {
+  transition: all 0.3s ease;
+}
+
+.masonry-column {
+  transition: width 0.3s ease;
+}
+
+// 深色模式适配
+@media (prefers-color-scheme: dark) {
+  .loading-container .masonry-skeleton .skeleton-item {
+    background: #1f1f1f;
+    border: 1px solid #333;
+  }
+}
+</style>

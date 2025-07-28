@@ -1,0 +1,373 @@
+<template>
+  <div class="app-layout">
+    <!-- Top navigation -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="header-left">
+          <el-button
+            type="text"
+            class="sidebar-toggle"
+            @click="appStore.toggleSidebar"
+          >
+            <el-icon><Menu /></el-icon>
+          </el-button>
+          <router-link to="/home" class="logo">
+            <h1>AuralCanvas</h1>
+          </router-link>
+        </div>
+        
+        <div class="header-center">
+          <el-input
+            v-model="searchKeyword"
+            placeholder="Search posts..."
+            class="search-input"
+            @keyup.enter="handleSearch"
+            clearable
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+        </div>
+        
+        <div class="header-right">
+          <template v-if="userStore.isLoggedIn">
+            <el-button type="primary" @click="handleCreatePost">
+              <el-icon><Plus /></el-icon>
+              Create
+            </el-button>
+            
+            <!-- 消息通知 -->
+            <el-badge :value="unreadCount" :hidden="unreadCount === 0">
+              <el-button type="text" @click="$router.push('/messages')">
+                <el-icon><ChatDotRound /></el-icon>
+              </el-button>
+            </el-badge>
+            
+            <!-- 好友请求通知 -->
+            <el-badge :value="friendRequestCount" :hidden="friendRequestCount === 0">
+              <el-button type="text" @click="$router.push('/friends')">
+                <el-icon><User /></el-icon>
+              </el-button>
+            </el-badge>
+            
+            <el-dropdown>
+              <div class="user-avatar" @click="goToMyProfile">
+                <el-avatar 
+                  :src="userStore.avatar ? getFileUrl(userStore.avatar) : null"
+                  :size="32"
+                  class="clickable-avatar"
+                >
+                  <el-icon><User /></el-icon>
+                </el-avatar>
+                <span class="username">{{ userStore.username }}</span>
+              </div>
+              
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="router.push('/profile')">
+                    <el-icon><User /></el-icon>
+                    My Profile
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/profile/edit')">
+                    <el-icon><Edit /></el-icon>
+                    Edit Profile
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/friends')">
+                    <el-icon><UserFilled /></el-icon>
+                    Friends
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/messages')">
+                    <el-icon><ChatDotRound /></el-icon>
+                    Messages
+                  </el-dropdown-item>
+                  <el-dropdown-item divided @click="handleLogout">
+                    <el-icon><SwitchButton /></el-icon>
+                    Sign Out
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+          
+          <template v-else>
+            <el-button @click="router.push('/login')">Sign In</el-button>
+            <el-button type="primary" @click="router.push('/register')">Sign Up</el-button>
+          </template>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Sidebar -->
+    <AppSidebar v-if="userStore.isLoggedIn" />
+    
+    <!-- Main content area - 根据侧边栏状态调整 -->
+    <main class="app-main" :class="{ 'with-sidebar': userStore.isLoggedIn && appStore.sidebar.opened }">
+      <div class="main-content">
+        <router-view />
+      </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="app-footer" :class="{ 'with-sidebar': userStore.isLoggedIn && appStore.sidebar.opened }">
+      <div class="footer-content">
+        <p>&copy; 2024 AuralCanvas. All rights reserved.</p>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+import { useAppStore } from '@/stores/app'
+import { getFileUrl } from '@/utils'
+import { getUnreadCount } from '@/api/messages'
+import { getFriendRequests } from '@/api/friends'
+import AppSidebar from '@/components/sidebar/AppSidebar.vue'
+import { 
+  Menu, Search, Plus, ChatDotRound, User, UserFilled, 
+  Edit, SwitchButton 
+} from '@element-plus/icons-vue'
+
+const router = useRouter()
+const userStore = useUserStore()
+const appStore = useAppStore()
+const searchKeyword = ref('')
+const unreadCount = ref(0)
+const friendRequestCount = ref(0)
+
+// 点击头像跳转到个人主页
+const goToMyProfile = () => {
+  router.push('/profile')
+}
+
+// Search handling
+const handleSearch = () => {
+  if (!searchKeyword.value.trim()) {
+    ElMessage.warning('Please enter a search keyword')
+    return
+  }
+  
+  // Navigate to home with search query
+  router.push({
+    path: '/home',
+    query: { 
+      tab: 'search',
+      q: searchKeyword.value.trim()
+    }
+  })
+}
+
+// Create post
+const handleCreatePost = () => {
+  router.push('/post/create')
+}
+
+// Sign out
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('Are you sure you want to sign out?', 'Confirm', {
+      confirmButtonText: 'Sign Out',
+      cancelButtonText: 'Cancel',
+      type: 'warning'
+    })
+    
+    userStore.logout()
+    ElMessage.success('Signed out successfully')
+    router.push('/home')
+  } catch {
+    // User cancelled
+  }
+}
+
+// Load notification counts
+const loadNotifications = async () => {
+  if (!userStore.isLoggedIn) return
+  
+  try {
+    const [unreadResponse, friendsResponse] = await Promise.all([
+      getUnreadCount(),
+      getFriendRequests({ status: 'pending' })
+    ])
+    
+    unreadCount.value = unreadResponse.data.count || 0
+    friendRequestCount.value = friendsResponse.data.requests?.length || 0
+  } catch (error) {
+    console.error('Failed to load notifications:', error)
+  }
+}
+
+onMounted(() => {
+  loadNotifications()
+  
+  // 设置定时器定期更新通知
+  setInterval(loadNotifications, 30000) // 30秒更新一次
+})
+</script>
+
+<style lang="scss" scoped>
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  
+  .header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    .sidebar-toggle {
+      color: #909399;
+      
+      &:hover {
+        color: #409EFF;
+      }
+    }
+    
+    .logo {
+      text-decoration: none;
+      color: #409EFF;
+      
+      h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+      }
+    }
+  }
+  
+  .header-center {
+    flex: 1;
+    max-width: 500px;
+    margin: 0 40px;
+    
+    .search-input {
+      width: 100%;
+    }
+  }
+  
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    
+    .user-avatar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+      
+      &:hover {
+        background-color: #f5f7fa;
+      }
+      
+      .clickable-avatar {
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+      
+      .username {
+        font-size: 14px;
+        color: #303133;
+      }
+    }
+  }
+}
+
+// 主内容区域 - 恢复侧边栏布局
+.app-main {
+  flex: 1;
+  background: #f5f7fa;
+  transition: margin-left 0.3s ease;
+  
+  &.with-sidebar {
+    margin-left: 240px;
+  }
+  
+  .main-content {
+    // 取消最大宽度限制，让内容充满可用空间
+    width: 100%;
+    padding: 20px;
+    margin: 0;
+  }
+}
+
+.app-footer {
+  background: #fff;
+  border-top: 1px solid #e4e7ed;
+  transition: margin-left 0.3s ease;
+  
+  &.with-sidebar {
+    margin-left: 240px;
+  }
+  
+  .footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+    color: #909399;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    .header-content {
+      padding: 0 15px;
+      height: 50px;
+    }
+    
+    .header-center {
+      margin: 0 20px;
+    }
+    
+    .header-left .logo h1 {
+      font-size: 20px;
+    }
+    
+    .user-avatar .username {
+      display: none;
+    }
+  }
+  
+  .app-main,
+  .app-footer {
+    &.with-sidebar {
+      margin-left: 0;
+    }
+  }
+  
+  .app-main .main-content {
+    padding: 15px;
+  }
+}
+</style>

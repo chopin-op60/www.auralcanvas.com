@@ -1,0 +1,291 @@
+<template>
+  <el-dialog
+    v-model="visible"
+    title="AI Image Generation Helper"
+    class="image-helper-dialog"
+    @close="cleanupChat"
+    :width="dialogWidth"
+    :fullscreen="isFullscreen"
+  >
+    <div class="helper-content">
+      <div class="helper-header">
+        <el-alert
+          title="AI Image Generation Assistant"
+          type="info"
+          show-icon
+          :closable="false"
+        >
+          <p>Chat with our AI to generate images and get creative suggestions for your post! The AI can help you:</p>
+          <ul>
+            <li>Generate custom images based on your descriptions</li>
+            <li>Provide image URLs that you can use in your post</li>
+            <li>Give you tips on writing better image prompts</li>
+            <li>Suggest creative ideas for visual content</li>
+          </ul>
+        </el-alert>
+      </div>
+
+      <div class="chat-container">
+        <div class="isolated-frame-container">
+          <iframe
+            ref="helperFrame"
+            :src="helperChatUrl"
+            class="helper-iframe"
+            allow="microphone"
+            loading="lazy"
+          ></iframe>
+        </div>
+      </div>
+
+      <div class="helper-footer">
+        <el-button @click="closeHelper">
+          <el-icon><Close /></el-icon>
+          Close Helper
+        </el-button>
+        <el-button type="primary" @click="openInNewTab">
+          <el-icon><Link /></el-icon>
+          Open in New Tab
+        </el-button>
+        <el-button 
+          v-if="!isFullscreen" 
+          type="info" 
+          @click="toggleFullscreen"
+        >
+          <el-icon><FullScreen /></el-icon>
+          Fullscreen
+        </el-button>
+      </div>
+    </div>
+  </el-dialog>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { Close, Link, FullScreen } from '@element-plus/icons-vue'
+
+const props = defineProps({
+  modelValue: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const helperFrame = ref()
+const isFullscreen = ref(false)
+
+// 控制弹窗显示
+const visible = computed({
+  get() {
+    return props.modelValue
+  },
+  set(value) {
+    emit('update:modelValue', value)
+  }
+})
+
+// 🔧 响应式对话框宽度
+const dialogWidth = computed(() => {
+  if (typeof window !== 'undefined') {
+    const width = window.innerWidth
+    if (width < 768) return '95%'
+    if (width < 1024) return '85%'
+    return '80%'
+  }
+  return '80%'
+})
+
+// AI图片生成助手的URL - 使用你提供的智能体
+const imageGenerationAgentUrl = 'https://www.xingyunlink.com/chat/share?shareId=5xo4cuxvrxtiepkdb2ugh9yq&showHistory=0'
+
+// 创建隔离的聊天URL
+const helperChatUrl = computed(() => {
+  const encodedUrl = encodeURIComponent(imageGenerationAgentUrl)
+  return `/ai-chat/?url=${encodedUrl}`
+})
+
+// 关闭助手
+const closeHelper = () => {
+  visible.value = false
+  isFullscreen.value = false
+}
+
+// 在新标签页打开
+const openInNewTab = () => {
+  window.open(imageGenerationAgentUrl, '_blank')
+}
+
+// 切换全屏模式
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+}
+
+// 清理聊天
+const cleanupChat = () => {
+  // 清理操作在这里执行
+  console.log('AI Image Generation Helper closed')
+  isFullscreen.value = false
+}
+</script>
+
+<style lang="scss" scoped>
+.image-helper-dialog {
+  // 🔧 确保对话框不会超出视窗
+  :deep(.el-dialog) {
+    max-width: 95vw !important;
+    max-height: 95vh !important;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  
+  // 🔧 全屏模式下的特殊处理
+  :deep(.el-dialog.is-fullscreen) {
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  
+  .helper-content {
+    display: flex;
+    flex-direction: column;
+    // 🔧 限制内容高度，防止溢出
+    height: clamp(500px, 70vh, 750px);
+    max-height: 75vh;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  
+  .helper-header {
+    margin-bottom: 20px;
+    flex-shrink: 0;
+    // 🔧 限制头部区域最大高度
+    max-height: 200px;
+    overflow-y: auto;
+    
+    ul {
+      margin-top: 10px;
+      padding-left: 20px;
+      
+      li {
+        margin: 5px 0;
+        line-height: 1.5;
+        font-size: 14px;
+      }
+    }
+  }
+  
+  .chat-container {
+    flex: 1;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    // 🔧 确保Chat容器不会无限扩展
+    min-height: 300px;
+    max-height: 500px;
+    
+    .isolated-frame-container {
+      height: 100%;
+      width: 100%;
+      position: relative;
+      
+      .helper-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        // 🔧 防止iframe影响布局
+        display: block;
+        box-sizing: border-box;
+      }
+    }
+  }
+  
+  .helper-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    // 🔧 固定底部高度
+    min-height: 48px;
+    max-height: 60px;
+    
+    .el-button {
+      .el-icon {
+        margin-right: 6px;
+      }
+    }
+  }
+}
+
+// 🔧 全屏模式特殊样式
+.image-helper-dialog:has(.el-dialog.is-fullscreen) {
+  .helper-content {
+    height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+  }
+  
+  .chat-container {
+    max-height: calc(100vh - 320px);
+  }
+}
+
+// 🔧 响应式优化
+@media (max-width: 768px) {
+  .image-helper-dialog {
+    :deep(.el-dialog) {
+      width: 95vw !important;
+      margin: 5vh auto !important;
+    }
+    
+    .helper-content {
+      height: clamp(400px, 80vh, 600px);
+      max-height: 80vh;
+    }
+    
+    .helper-header {
+      max-height: 150px;
+      
+      ul li {
+        font-size: 13px;
+      }
+    }
+    
+    .chat-container {
+      min-height: 250px;
+      max-height: 400px;
+    }
+    
+    .helper-footer {
+      flex-direction: column;
+      gap: 8px;
+      
+      .el-button {
+        width: 100%;
+        margin: 0;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .image-helper-dialog {
+    :deep(.el-dialog) {
+      width: 98vw !important;
+      margin: 2vh auto !important;
+    }
+    
+    .helper-content {
+      height: clamp(350px, 85vh, 500px);
+      max-height: 85vh;
+    }
+    
+    .chat-container {
+      min-height: 200px;
+      max-height: 320px;
+    }
+  }
+}
+</style>

@@ -298,8 +298,8 @@ onMounted(() => {
   margin: 0;
   padding: 32px;
   min-height: 100vh;
-  // 🔧 保持浅灰色背景作为帖子间隙
-  background: #f8fafb;
+  // 🔧 关键修复：将首页背景设为浅灰色，这样才能显示帖子间的灰色间隙
+  background: #f1f3f4;
 }
 
 .welcome-banner {
@@ -407,22 +407,22 @@ onMounted(() => {
 }
 
 .content-tabs {
-  // 🔧 关键修复：完全透明背景，让浅灰色间隙显示
-  background: transparent;
-  padding: 0;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  padding: 36px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06);
   min-height: 800px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .search-results-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  background: white;
-  border-radius: 16px;
-  margin: 0 0 24px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 0 0 24px 0;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 24px;
   
   h3 {
     margin: 0;
@@ -447,74 +447,27 @@ onMounted(() => {
   background: transparent;
 }
 
-// 🔧 关键修复：Tabs导航栏样式优化 - 标签垂直居中
 :deep(.el-tabs__header) {
   margin-bottom: 0;
-  background: white;
-  border-radius: 16px;
-  padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  overflow: hidden;
 }
 
-:deep(.el-tabs__nav-wrap) {
-  padding: 0 20px;
-  margin-bottom: 0;
-  
-  &::after {
-    background-color: rgba(229, 231, 235, 0.8);
-  }
-}
-
-:deep(.el-tabs__nav-scroll) {
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-:deep(.el-tabs__nav) {
-  height: 100%;
-  display: flex;
-  align-items: center;
+:deep(.el-tabs__nav-wrap::after) {
+  background-color: rgba(229, 231, 235, 0.8);
 }
 
 :deep(.el-tabs__item) {
   font-size: 16px;
   font-weight: 600;
-  padding: 0 20px;
-  // 🔧 关键修复：固定高度并垂直居中
+  padding: 0 24px;
   height: 48px;
   line-height: 48px;
-  border-bottom: none;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  &:hover {
-    color: #409EFF;
-    background: rgba(64, 158, 255, 0.05);
-  }
-  
-  &.is-active {
-    color: #409EFF;
-    background: rgba(64, 158, 255, 0.08);
-    font-weight: 700;
-  }
-}
-
-:deep(.el-tabs__active-bar) {
-  bottom: 0;
-  height: 3px;
-  background: #409EFF;
 }
 
 // 响应式设计
 @media (max-width: 768px) {
   .home-page {
     padding: 20px;
-    background: #f8fafb;
+    background: #f1f3f4;
   }
   
   .welcome-banner {
@@ -555,32 +508,24 @@ onMounted(() => {
   }
   
   .content-tabs {
-    padding: 0;
+    padding: 24px;
+    border-radius: 20px;
   }
   
   .search-results-header {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
-    padding: 16px 20px;
-    margin: 0 0 20px 0;
+    padding-bottom: 16px;
     
     h3 {
       font-size: 18px;
     }
   }
   
-  :deep(.el-tabs__header) {
-    border-radius: 16px;
-  }
-  
-  :deep(.el-tabs__nav-wrap) {
-    padding: 0 16px;
-  }
-  
   :deep(.el-tabs__item) {
     font-size: 14px;
-    padding: 0 12px;
+    padding: 0 16px;
     height: 44px;
     line-height: 44px;
   }
@@ -611,17 +556,6 @@ onMounted(() => {
         font-size: 13px;
       }
     }
-  }
-  
-  :deep(.el-tabs__nav-wrap) {
-    padding: 0 12px;
-  }
-  
-  :deep(.el-tabs__item) {
-    font-size: 13px;
-    padding: 0 10px;
-    height: 40px;
-    line-height: 40px;
   }
 }
 </style>

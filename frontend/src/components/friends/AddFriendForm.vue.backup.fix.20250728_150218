@@ -137,13 +137,11 @@ const handlePageChange = (page) => {
   handleSearch()
 }
 
-// 🔧 修复：正确传递userId参数
 const handleSendRequest = async (user) => {
   user.sending = true
   
   try {
-    // ✅ 修复：直接传递user.id，而不是对象
-    await sendFriendRequest(user.id)
+    await sendFriendRequest({ userId: user.id })
     ElMessage.success(`Friend request sent to ${user.username}`)
     
     // 从搜索结果中移除这个用户

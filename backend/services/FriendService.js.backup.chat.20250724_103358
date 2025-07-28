@@ -209,13 +209,11 @@ class FriendService extends BaseService {
         }
     }
 
-    // 🔥 删除好友 - 增强版：同时处理相关对话
+    // 删除好友
     async removeFriend(userId, friendId) {
         try {
             const safeUserId = parseInt(userId);
             const safeFriendId = parseInt(friendId);
-            
-            console.log('Removing friend relationship between:', safeUserId, 'and', safeFriendId);
             
             // 查找好友关系
             const [friendship] = await this.db.execute(
@@ -229,54 +227,8 @@ class FriendService extends BaseService {
                 throw new Error('Friendship not found');
             }
             
-            // 🔥 新增：查找相关对话
-            const [conversations] = await this.db.execute(
-                `SELECT id FROM conversations 
-                 WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)`,
-                [safeUserId, safeFriendId, safeFriendId, safeUserId]
-            );
-            
-            // 启动事务确保数据一致性
-            await this.db.execute('START TRANSACTION');
-            
-            try {
-                // 1. 删除好友关系
-                await this.delete(friendship[0].id);
-                console.log('Friend relationship deleted');
-                
-                // 2. 如果存在对话，添加删除标记或隐藏对话
-                if (conversations.length > 0) {
-                    const conversationId = conversations[0].id;
-                    console.log('Found related conversation:', conversationId);
-                    
-                    // 不实际删除对话和消息，而是添加隐藏标记
-                    // 创建一个conversation_hidden表来记录用户隐藏的对话
-                    await this.db.execute(`
-                        INSERT INTO conversation_hidden (conversation_id, user_id, hidden_at) 
-                        VALUES (?, ?, NOW()), (?, ?, NOW()) 
-                        ON DUPLICATE KEY UPDATE hidden_at = NOW()
-                    `, [conversationId, safeUserId, conversationId, safeFriendId]);
-                    
-                    console.log('Conversation marked as hidden for both users');
-                }
-                
-                // 提交事务
-                await this.db.execute('COMMIT');
-                console.log('Friend removal transaction completed successfully');
-                
-                return {
-                    friendshipDeleted: true,
-                    conversationHidden: conversations.length > 0,
-                    conversationId: conversations.length > 0 ? conversations[0].id : null
-                };
-                
-            } catch (error) {
-                // 回滚事务
-                await this.db.execute('ROLLBACK');
-                console.error('Transaction rollback due to error:', error);
-                throw error;
-            }
-            
+            // 删除好友关系
+            return await this.delete(friendship[0].id);
         } catch (error) {
             console.error('Error in removeFriend:', error);
             throw error;
@@ -302,26 +254,6 @@ class FriendService extends BaseService {
             return relationship[0].status;
         } catch (error) {
             console.error('Error in getFriendStatus:', error);
-            throw error;
-        }
-    }
-
-    // 🔥 新增：检查两个用户是否为好友
-    async areFriends(userId1, userId2) {
-        try {
-            const safeUserId1 = parseInt(userId1);
-            const safeUserId2 = parseInt(userId2);
-            
-            const [result] = await this.db.execute(
-                `SELECT COUNT(*) as count FROM friends 
-                 WHERE ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))
-                 AND status = 'accepted'`,
-                [safeUserId1, safeUserId2, safeUserId2, safeUserId1]
-            );
-            
-            return result[0].count > 0;
-        } catch (error) {
-            console.error('Error in areFriends:', error);
             throw error;
         }
     }

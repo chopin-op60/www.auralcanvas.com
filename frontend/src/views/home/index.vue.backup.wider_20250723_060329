@@ -1,0 +1,364 @@
+<template>
+  <div class="home-page">
+    <div class="welcome-banner">
+      <h1>Welcome to AuralCanvas</h1>
+      <p>Share your creativity and discover amazing multimedia content</p>
+    </div>
+    
+    <div class="content-tabs">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="Latest" name="latest">
+          <PostList 
+            :posts="posts" 
+            :loading="loading" 
+            @post-deleted="handlePostDeleted"
+            @post-updated="handlePostUpdated"
+          />
+        </el-tab-pane>
+        <el-tab-pane label="Trending" name="trending">
+          <PostList 
+            :posts="posts" 
+            :loading="loading" 
+            @post-deleted="handlePostDeleted"
+            @post-updated="handlePostUpdated"
+          />
+        </el-tab-pane>
+        <el-tab-pane label="Following" name="following" v-if="userStore.isLoggedIn">
+          <PostList 
+            :posts="posts" 
+            :loading="loading" 
+            @post-deleted="handlePostDeleted"
+            @post-updated="handlePostUpdated"
+          />
+        </el-tab-pane>
+        <el-tab-pane :label="searchTabLabel" name="search" v-if="isSearchMode">
+          <div class="search-results-header">
+            <h3>Search Results for "{{ currentSearchKeyword }}"</h3>
+            <el-button type="text" @click="clearSearch" class="clear-search-btn">
+              <el-icon><Close /></el-icon>
+              Clear Search
+            </el-button>
+          </div>
+          <PostList 
+            :posts="posts" 
+            :loading="loading" 
+            @post-deleted="handlePostDeleted"
+            @post-updated="handlePostUpdated"
+          />
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+import PostList from '@/components/post/PostList.vue'
+import { getPostList, searchPosts } from '@/api/posts'
+import { Close } from '@element-plus/icons-vue'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const activeTab = ref('latest')
+const posts = ref([])
+const loading = ref(false)
+const currentSearchKeyword = ref('')
+
+// Search mode detection
+const isSearchMode = computed(() => currentSearchKeyword.value !== '')
+const searchTabLabel = computed(() => 
+  currentSearchKeyword.value ? `Search: ${currentSearchKeyword.value}` : 'Search'
+)
+
+// Watch route changes to handle search from header
+watch(
+  () => route.query,
+  (newQuery) => {
+    if (newQuery.tab === 'search' && newQuery.q) {
+      currentSearchKeyword.value = newQuery.q
+      activeTab.value = 'search'
+      handleSearch(newQuery.q)
+    } else if (activeTab.value === 'search' && !newQuery.q) {
+      clearSearch()
+    }
+  },
+  { immediate: true }
+)
+
+// Handle search
+const handleSearch = async (keyword) => {
+  console.log('Searching for:', keyword)
+  loading.value = true
+  
+  try {
+    const params = {
+      q: keyword,
+      page: 1,
+      limit: 30  // 增加加载数量适应三列布局
+    }
+    
+    const response = await searchPosts(params)
+    console.log('Search API response:', response)
+    
+    if (response.success && response.data) {
+      posts.value = response.data.posts || []
+      console.log('Search results:', posts.value.length)
+      
+      if (posts.value.length === 0) {
+        ElMessage.info(`No posts found for "${keyword}"`)
+      }
+    } else {
+      console.warn('Invalid search response format:', response)
+      posts.value = []
+    }
+  } catch (error) {
+    console.error('Failed to search posts:', error)
+    ElMessage.error('Search failed, please try again')
+    posts.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Clear search
+const clearSearch = () => {
+  currentSearchKeyword.value = ''
+  activeTab.value = 'latest'
+  router.push('/home')
+  loadPosts('latest')
+}
+
+// Switch tabs
+const handleTabChange = async (tab) => {
+  console.log('Switching to tab:', tab)
+  activeTab.value = tab
+  
+  if (tab === 'search') {
+    // If switching to search tab but no keyword, do nothing
+    if (!currentSearchKeyword.value) {
+      activeTab.value = 'latest'
+      return
+    }
+    await handleSearch(currentSearchKeyword.value)
+  } else {
+    await loadPosts(tab)
+  }
+}
+
+// Load posts list
+const loadPosts = async (tab = 'latest') => {
+  console.log('Loading posts for tab:', tab)
+  loading.value = true
+  
+  try {
+    const params = {
+      page: 1,
+      limit: 30  // 增加加载数量适应三列布局
+    }
+    
+    // 根据tab类型添加不同参数
+    switch (tab) {
+      case 'trending':
+        // TODO: 实现热门排序逻辑
+        break
+      case 'following':
+        // TODO: 实现关注用户帖子筛选
+        break
+      case 'latest':
+      default:
+        // 默认按时间倒序
+        break
+    }
+    
+    const response = await getPostList(params)
+    console.log('API response:', response)
+    
+    if (response.success && response.data) {
+      posts.value = response.data.posts || []
+      console.log('Loaded posts:', posts.value.length)
+    } else {
+      console.warn('Invalid response format:', response)
+      posts.value = []
+    }
+  } catch (error) {
+    console.error('Failed to load posts:', error)
+    ElMessage.error('Failed to load posts, please try again')
+    posts.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 处理帖子删除后的刷新
+const handlePostDeleted = (deletedPostId) => {
+  console.log('Home: Post deleted:', deletedPostId)
+  
+  // 从当前列表中移除已删除的帖子
+  posts.value = posts.value.filter(post => post.id !== deletedPostId)
+  
+  ElMessage.success('Post deleted successfully')
+  
+  // 如果列表变空，重新加载
+  if (posts.value.length === 0) {
+    if (isSearchMode.value) {
+      handleSearch(currentSearchKeyword.value)
+    } else {
+      loadPosts(activeTab.value)
+    }
+  }
+}
+
+// 处理帖子更新
+const handlePostUpdated = (updateData) => {
+  console.log('Home: Post updated:', updateData)
+  
+  // 找到对应的帖子并更新
+  const postIndex = posts.value.findIndex(post => post.id === updateData.id)
+  if (postIndex > -1) {
+    Object.assign(posts.value[postIndex], updateData)
+    console.log('Post state updated in home page')
+  }
+}
+
+onMounted(() => {
+  // Check if there's a search query in URL
+  if (route.query.tab === 'search' && route.query.q) {
+    currentSearchKeyword.value = route.query.q
+    activeTab.value = 'search'
+    handleSearch(route.query.q)
+  } else {
+    loadPosts('latest')
+  }
+})
+</script>
+
+<style lang="scss" scoped>
+.home-page {
+  // 改为全屏宽度，适配三列布局
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+}
+
+.welcome-banner {
+  text-align: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 16px;
+  margin-bottom: 30px;
+  
+  h1 {
+    font-size: 2.8rem;
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  
+  p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+  }
+}
+
+.content-tabs {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  min-height: 600px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.search-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 24px 0;
+  border-bottom: 2px solid #ebeef5;
+  margin-bottom: 24px;
+  
+  h3 {
+    margin: 0;
+    color: #303133;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  
+  .clear-search-btn {
+    color: #909399;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      color: #f56c6c;
+      transform: scale(1.05);
+    }
+  }
+}
+
+:deep(.el-tabs__content) {
+  padding-top: 24px;
+}
+
+:deep(.el-tabs__header) {
+  margin-bottom: 0;
+}
+
+:deep(.el-tabs__nav-wrap::after) {
+  background-color: rgba(235, 238, 245, 0.6);
+}
+
+// 响应式设计
+@media (max-width: 1600px) {
+  .home-page {
+    max-width: 1200px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .home-page {
+    max-width: 900px;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-page {
+    padding: 15px;
+    max-width: 100%;
+  }
+  
+  .welcome-banner {
+    padding: 30px 20px;
+    margin-bottom: 20px;
+    
+    h1 {
+      font-size: 2.2rem;
+    }
+    
+    p {
+      font-size: 1rem;
+    }
+  }
+  
+  .content-tabs {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .search-results-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    padding-bottom: 16px;
+    
+    h3 {
+      font-size: 18px;
+    }
+  }
+}
+</style>

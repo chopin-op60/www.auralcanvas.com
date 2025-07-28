@@ -47,19 +47,20 @@
 
         <el-form-item label="Media Files">
           <div class="media-upload-section">
-            <!-- 🔧 修复：AI创作工作室区域 -->
+            <!-- 🔧 修复：AI助手区域 - 添加严格的尺寸控制 -->
             <div class="ai-helper-section">
               <el-button
                 type="primary"
                 size="large"
                 @click="openImageHelper"
                 class="ai-helper-button"
+                :icon="MagicStick"
               >
                 <el-icon><MagicStick /></el-icon>
-                AI Creation Studio
+                AI Image Generation Helper
               </el-button>
               <p class="ai-helper-tip">
-                Need creative content for your post? Let AI help you generate images, ideas, and inspiration!
+                Need images for your post? Let AI help you generate custom images and provide creative suggestions!
               </p>
             </div>
 
@@ -94,7 +95,7 @@
               </el-upload>
             </div>
             
-            <!-- 🔧 修复：文件预览区域 - 改用base64预览解决FAILED问题 -->
+            <!-- 🔧 修复：文件预览区域 - 添加容器约束 -->
             <div v-if="uploadedFiles.length > 0" class="files-preview">
               <h4>Uploaded Files ({{ uploadedFiles.length }})</h4>
               <div class="files-grid">
@@ -106,13 +107,11 @@
                   <!-- Image Preview -->
                   <div v-if="isImageFile(file)" class="image-file">
                     <div class="image-container">
-                      <!-- 🔧 修复：使用img标签直接显示，避免Element Plus el-image的FAILED问题 -->
-                      <img 
+                      <el-image 
                         :src="file.preview" 
-                        :alt="file.name"
+                        fit="cover"
                         class="file-preview-image"
-                        @error="handleImageError"
-                        @load="handleImageLoad"
+                        :preview-disabled="true"
                       />
                     </div>
                     <div class="file-info">
@@ -187,7 +186,7 @@
       </el-form>
     </div>
 
-    <!-- AI Creation Studio Dialog -->
+    <!-- AI Image Generation Helper Dialog -->
     <ImageGenerationHelper v-model="imageHelperVisible" />
   </div>
 </template>
@@ -248,27 +247,17 @@ const isAudioFile = (file) => {
          /\.(mp3|wav|m4a|ogg|flac)$/i.test(file.name);
 }
 
-// Open AI Creation Studio
+// Open AI Image Generation Helper
 const openImageHelper = async () => {
   try {
     // 记录使用情况
     await logImageHelperUsage()
   } catch (error) {
-    console.log('Failed to log AI Creation Studio usage:', error)
+    console.log('Failed to log image helper usage:', error)
   }
   
   imageHelperVisible.value = true
-  ElMessage.success('AI Creation Studio opened!')
-}
-
-// 🔥 修复：图片加载处理
-const handleImageError = (event) => {
-  console.error('Image preview failed to load:', event.target.src)
-  event.target.style.display = 'none'
-}
-
-const handleImageLoad = (event) => {
-  console.log('Image preview loaded successfully:', event.target.src)
+  ElMessage.success('AI Image Generation Helper opened!')
 }
 
 // File upload handlers
@@ -291,7 +280,7 @@ const beforeUpload = (file) => {
   return false; // Prevent auto upload
 }
 
-// 🔥 修复：文件处理优化，更好的预览URL生成
+// Fixed file handling
 const handleFileAdd = (file, fileList) => {
   console.log('handleFileAdd called:', file);
   
@@ -313,27 +302,21 @@ const handleFileAdd = (file, fileList) => {
     return;
   }
   
-  // 🔥 修复：创建更稳定的预览URL
-  try {
-    const previewUrl = URL.createObjectURL(rawFile);
-    
-    const fileData = {
-      uid: file.uid || `${Date.now()}-${Math.random()}`,
-      name: rawFile.name,
-      size: rawFile.size,
-      type: rawFile.type,
-      preview: previewUrl,
-      raw: rawFile
-    };
-    
-    uploadedFiles.value.push(fileData);
-    console.log('File added to uploadedFiles:', uploadedFiles.value.length);
-    ElMessage.success(`File "${rawFile.name}" added successfully`);
-    
-  } catch (error) {
-    console.error('Failed to create file preview:', error);
-    ElMessage.error('Failed to create file preview');
-  }
+  // Create preview URL
+  const previewUrl = URL.createObjectURL(rawFile);
+  
+  const fileData = {
+    uid: file.uid, // Element Plus file uid
+    name: rawFile.name,
+    size: rawFile.size,
+    type: rawFile.type,
+    preview: previewUrl,
+    raw: rawFile // Store the actual file
+  };
+  
+  uploadedFiles.value.push(fileData);
+  console.log('File added to uploadedFiles:', uploadedFiles.value.length);
+  ElMessage.success(`File "${rawFile.name}" added successfully`);
 }
 
 const handleFileRemove = (file, fileList) => {
@@ -352,11 +335,7 @@ const handleFileRemove = (file, fileList) => {
 const removeFile = (index) => {
   const file = uploadedFiles.value[index];
   if (file?.preview) {
-    try {
-      URL.revokeObjectURL(file.preview);
-    } catch (error) {
-      console.warn('Failed to revoke URL:', error);
-    }
+    URL.revokeObjectURL(file.preview);
   }
   uploadedFiles.value.splice(index, 1);
   console.log('File removed, remaining:', uploadedFiles.value.length);
@@ -413,11 +392,7 @@ const submitPost = async () => {
     // Clean up preview URLs
     uploadedFiles.value.forEach(file => {
       if (file.preview) {
-        try {
-          URL.revokeObjectURL(file.preview);
-        } catch (error) {
-          console.warn('Failed to revoke URL during cleanup:', error);
-        }
+        URL.revokeObjectURL(file.preview);
       }
     });
     
@@ -441,11 +416,7 @@ const resetForm = () => {
   // Clean up files
   uploadedFiles.value.forEach(file => {
     if (file.preview) {
-      try {
-        URL.revokeObjectURL(file.preview);
-      } catch (error) {
-        console.warn('Failed to revoke URL during reset:', error);
-      }
+      URL.revokeObjectURL(file.preview);
     }
   });
   uploadedFiles.value = [];
@@ -464,83 +435,62 @@ const resetForm = () => {
 
 <style lang="scss" scoped>
 .create-post-page {
-  // 🔧 关键修复：采用与Profile页面相同的布局结构
-  width: 100%;
-  min-height: 100vh;
-  background: #f8fafb;
   padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  // 🔧 防止页面内容超出视窗
+  min-height: calc(100vh - 140px);
+  box-sizing: border-box;
 }
 
 .create-container {
-  // 🔧 白色卡片容器，与其他页面保持一致
-  max-width: 900px;
-  margin: 0 auto;
   background: white;
-  border-radius: 20px;
-  padding: 48px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-sizing: border-box;
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  // 🔧 确保容器不会无限扩展
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .page-header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 40px;
   
   h1 {
-    font-size: 2.2rem;
+    font-size: 32px;
     color: #303133;
-    margin-bottom: 12px;
-    font-weight: 800;
+    margin-bottom: 8px;
+    font-weight: 700;
   }
   
   p {
     color: #909399;
-    font-size: 17px;
-    line-height: 1.5;
+    font-size: 16px;
   }
 }
 
 .post-form {
+  // 🔧 确保表单不会溢出
   width: 100%;
   max-width: 100%;
-  
-  :deep(.el-form-item__label) {
-    font-weight: 600;
-    color: #303133;
-  }
-  
-  :deep(.el-input), :deep(.el-textarea) {
-    .el-input__wrapper, .el-textarea__inner {
-      border-radius: 12px;
-      border: 2px solid #e4e7ed;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        border-color: #c0c4cc;
-      }
-      
-      &.is-focus {
-        border-color: #409EFF;
-        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
-      }
-    }
-  }
 }
 
+// 🔧 媒体上传区域 - 严格的尺寸控制
 .media-upload-section {
   width: 100%;
   max-width: 100%;
   overflow: hidden;
   
-  // 🔧 AI创作工作室区域
+  // 🔧 AI助手区域 - 固定高度和约束
   .ai-helper-section {
     text-align: center;
-    margin-bottom: 32px;
-    padding: 28px;
+    margin-bottom: 30px;
+    padding: 24px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
+    border-radius: 12px;
     color: white;
+    // 🔧 关键修复：限制最大高度和防止内容溢出
     max-height: 200px;
     min-height: 140px;
     display: flex;
@@ -551,13 +501,14 @@ const resetForm = () => {
     box-sizing: border-box;
     
     .ai-helper-button {
-      font-size: 17px;
-      padding: 16px 36px;
-      border-radius: 12px;
-      margin-bottom: 14px;
+      font-size: 16px;
+      padding: 16px 32px;
+      border-radius: 8px;
+      margin-bottom: 12px;
       background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.3);
       color: white;
+      // 🔧 防止按钮变形
       white-space: nowrap;
       flex-shrink: 0;
       transition: all 0.3s ease;
@@ -577,9 +528,10 @@ const resetForm = () => {
     
     .ai-helper-tip {
       margin: 0;
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.4;
       opacity: 0.9;
+      // 🔧 防止文本溢出
       text-align: center;
       word-break: break-word;
       overflow: hidden;
@@ -589,10 +541,12 @@ const resetForm = () => {
     }
   }
   
+  // 🔧 上传区域容器 - 固定尺寸
   .upload-area-container {
     width: 100%;
-    margin-bottom: 28px;
-    height: 220px;
+    margin-bottom: 24px;
+    // 🔧 关键修复：固定高度防止突然变大
+    height: 200px;
     overflow: hidden;
     
     .media-uploader {
@@ -607,12 +561,13 @@ const resetForm = () => {
       :deep(.el-upload-dragger) {
         width: 100% !important;
         height: 100% !important;
-        border-radius: 16px;
+        border-radius: 12px;
         border: 2px dashed #dcdfe6;
         transition: all 0.3s;
         display: flex;
         align-items: center;
         justify-content: center;
+        // 🔧 防止拖拽区域扩展
         box-sizing: border-box;
         overflow: hidden;
         
@@ -628,14 +583,15 @@ const resetForm = () => {
         align-items: center;
         justify-content: center;
         height: 100%;
-        padding: 24px;
+        padding: 20px;
+        // 🔧 防止内容溢出
         max-width: 100%;
         box-sizing: border-box;
         
         .upload-icon {
-          font-size: 52px;
+          font-size: 48px;
           color: #409EFF;
-          margin-bottom: 18px;
+          margin-bottom: 16px;
           flex-shrink: 0;
         }
         
@@ -644,9 +600,9 @@ const resetForm = () => {
           width: 100%;
           
           p:first-child {
-            font-size: 17px;
+            font-size: 16px;
             color: #606266;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             
             em {
               color: #409EFF;
@@ -656,9 +612,10 @@ const resetForm = () => {
           }
           
           .upload-tip {
-            font-size: 14px;
+            font-size: 13px;
             color: #909399;
             line-height: 1.4;
+            // 🔧 防止提示文字溢出
             word-break: break-word;
           }
         }
@@ -666,54 +623,51 @@ const resetForm = () => {
     }
   }
   
+  // 🔧 文件预览区域 - 严格的容器控制
   .files-preview {
     width: 100%;
     max-width: 100%;
-    max-height: 650px;
+    // 🔧 关键修复：限制预览区域最大高度
+    max-height: 600px;
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
     
     h4 {
       color: #303133;
-      margin-bottom: 20px;
-      font-size: 18px;
-      font-weight: 700;
+      margin-bottom: 16px;
+      font-size: 16px;
+      // 🔧 防止标题溢出
       word-break: break-word;
     }
     
     .files-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
       width: 100%;
       
       .file-item {
         position: relative;
         border: 1px solid #e4e7ed;
-        border-radius: 16px;
+        border-radius: 12px;
         overflow: hidden;
         background: #fafafa;
-        max-width: 320px;
-        min-height: 180px;
-        max-height: 300px;
+        // 🔧 关键修复：限制每个文件项的最大尺寸
+        max-width: 300px;
+        min-height: 160px;
+        max-height: 280px;
         box-sizing: border-box;
-        transition: all 0.3s ease;
-        
-        &:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        }
         
         .remove-btn {
           position: absolute;
-          top: 10px;
-          right: 10px;
+          top: 8px;
+          right: 8px;
           z-index: 10;
           background: rgba(255, 255, 255, 0.9);
-          backdrop-filter: blur(4px);
         }
         
+        // 🔧 图片文件显示优化
         .image-file {
           display: flex;
           flex-direction: column;
@@ -721,9 +675,9 @@ const resetForm = () => {
           
           .image-container {
             width: 100%;
-            height: 160px;
+            height: 140px;
             overflow: hidden;
-            border-radius: 12px 12px 0 0;
+            border-radius: 8px 8px 0 0;
             background: #f5f7fa;
             display: flex;
             align-items: center;
@@ -732,36 +686,49 @@ const resetForm = () => {
             .file-preview-image {
               width: 100%;
               height: 100%;
+              // 🔧 防止图片撑大容器
               object-fit: cover;
-              object-position: center;
-              transition: opacity 0.3s ease;
               
-              &:hover {
-                opacity: 0.9;
+              :deep(.el-image__inner) {
+                object-fit: cover !important;
+                width: 100% !important;
+                height: 100% !important;
+              }
+              
+              :deep(.el-image__error) {
+                background: #f8f9fa;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #909399;
+                font-size: 12px;
+                width: 100%;
+                height: 100%;
               }
             }
           }
           
           .file-info {
-            padding: 14px;
+            padding: 12px;
             flex-shrink: 0;
           }
         }
         
+        // 🔧 音频文件显示优化
         .audio-file {
           display: flex;
           flex-direction: column;
-          padding: 18px;
+          padding: 16px;
           height: 100%;
           box-sizing: border-box;
           
           .audio-icon {
             text-align: center;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             flex-shrink: 0;
             
             .el-icon {
-              font-size: 36px;
+              font-size: 32px;
               color: #409EFF;
             }
           }
@@ -772,15 +739,16 @@ const resetForm = () => {
             flex-direction: column;
             
             .audio-container {
-              margin-top: 10px;
+              margin-top: 8px;
+              // 🔧 限制音频播放器尺寸
               width: 100%;
               overflow: hidden;
               
               .audio-player {
                 width: 100%;
                 max-width: 100%;
-                height: 36px;
-                border-radius: 6px;
+                height: 32px;
+                border-radius: 4px;
               }
             }
           }
@@ -788,10 +756,11 @@ const resetForm = () => {
         
         .file-info {
           .file-name {
-            font-size: 15px;
+            font-size: 14px;
             color: #303133;
-            margin: 0 0 6px 0;
-            font-weight: 600;
+            margin: 0 0 4px 0;
+            font-weight: 500;
+            // 🔧 防止文件名溢出
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -799,7 +768,7 @@ const resetForm = () => {
           }
           
           .file-size {
-            font-size: 13px;
+            font-size: 12px;
             color: #909399;
             margin: 0;
           }
@@ -810,108 +779,65 @@ const resetForm = () => {
 }
 
 .form-actions {
-  margin-top: 48px;
+  margin-top: 40px;
   
   :deep(.el-form-item__content) {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
-    justify-content: center;
+    gap: 12px;
   }
   
   .el-button {
-    border-radius: 12px;
-    padding: 14px 28px;
-    font-weight: 600;
-    font-size: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    }
-    
     .el-icon {
-      margin-right: 8px;
+      margin-right: 6px;
     }
   }
 }
 
+// 🔧 响应式设计优化
 @media (max-width: 768px) {
   .create-post-page {
     padding: 15px;
   }
   
   .create-container {
-    padding: 32px 24px;
-    border-radius: 16px;
-  }
-  
-  .page-header {
-    margin-bottom: 32px;
-    
-    h1 {
-      font-size: 1.9rem;
-    }
-    
-    p {
-      font-size: 15px;
-    }
+    padding: 25px 20px;
   }
   
   .media-upload-section {
     .ai-helper-section {
-      padding: 24px;
+      padding: 20px;
       min-height: 120px;
       
       .ai-helper-button {
         width: 100%;
-        font-size: 15px;
-        padding: 14px 28px;
-      }
-      
-      .ai-helper-tip {
         font-size: 14px;
+        padding: 12px 24px;
       }
     }
     
     .upload-area-container {
-      height: 180px;
+      height: 160px;
       
-      .upload-content {
-        padding: 20px;
-        
-        .upload-icon {
-          font-size: 42px;
-          margin-bottom: 14px;
-        }
-        
-        .upload-text {
-          p:first-child {
-            font-size: 15px;
-          }
-          
-          .upload-tip {
-            font-size: 12px;
-          }
+      .upload-content .upload-text {
+        .upload-tip {
+          font-size: 11px;
         }
       }
     }
     
     .files-preview {
-      max-height: 450px;
+      max-height: 400px;
       
       .files-grid {
         grid-template-columns: 1fr;
-        gap: 16px;
         
         .file-item {
           max-width: 100%;
-          max-height: 260px;
+          max-height: 240px;
           
-          .image-file .image-container {
-            height: 140px;
+          &.image-file .image-container {
+            height: 120px;
           }
         }
       }
@@ -919,47 +845,26 @@ const resetForm = () => {
   }
   
   .form-actions {
-    margin-top: 32px;
-    
     :deep(.el-form-item__content) {
       flex-direction: column;
       
       .el-button {
         width: 100%;
-        padding: 12px 24px;
-        font-size: 15px;
       }
     }
   }
 }
 
-@media (max-width: 480px) {
-  .create-post-page {
-    padding: 12px;
-  }
-  
-  .create-container {
-    padding: 24px 16px;
-  }
-  
-  .page-header {
-    h1 {
-      font-size: 1.6rem;
-    }
-    
-    p {
-      font-size: 14px;
-    }
-  }
-}
-
+// 🔧 防止全局样式干扰
 .create-post-page {
+  // 重置可能的全局样式影响
   * {
     box-sizing: border-box;
   }
   
+  // 确保Element Plus组件不受全局样式影响
   :deep(.el-form-item) {
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
   
   :deep(.el-upload) {

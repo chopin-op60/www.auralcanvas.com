@@ -84,14 +84,6 @@ export function getUserAgent(userId) {
   })
 }
 
-// 获取公开AI代理（别名，为了兼容性）
-export function getPublicAgent(userId) {
-  return request({
-    url: `/ai/agents/user/${userId}`,
-    method: 'get'
-  })
-}
-
 // 图片生成助手相关API
 export function getImageGenerationHelper() {
   return request({

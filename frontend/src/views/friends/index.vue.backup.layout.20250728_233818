@@ -155,114 +155,41 @@ onMounted(() => {
 .friends-page {
   max-width: 800px;
   margin: 0 auto;
-  // 🔧 关键修复：移除重复背景，只保留顶部间距
-  padding: 40px 20px 20px 20px;
-  min-height: calc(100vh - 80px);
-  box-sizing: border-box;
-  // 🔧 移除页面级背景，避免双重容器
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
-  padding: 32px;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
   
   h1 {
     margin: 0;
     color: #303133;
-    font-size: 2rem;
-    font-weight: 800;
   }
-  
-  .el-button {
-    border-radius: 12px;
-    padding: 12px 20px;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
-    transition: all 0.3s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(64, 158, 255, 0.3);
-    }
-  }
-}
-
-// 🔧 关键修复：Tabs样式，避免双重白色容器
-:deep(.el-tabs) {
-  background: white;
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 :deep(.el-tabs__content) {
-  padding-top: 24px;
-  background: transparent;
-}
-
-:deep(.el-tabs__header) {
-  margin-bottom: 0;
-  border-bottom: 2px solid #f0f0f0;
-  padding-bottom: 16px;
-}
-
-:deep(.el-tabs__item) {
-  font-size: 16px;
-  font-weight: 600;
-  padding: 0 20px;
-  height: 44px;
-  line-height: 44px;
-  
-  &.is-active {
-    color: #409EFF;
-    font-weight: 700;
-  }
+  padding-top: 20px;
 }
 
 :deep(.el-dialog) {
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 @media (max-width: 768px) {
   .friends-page {
-    padding: 24px 15px 15px 15px;
+    padding: 0 15px;
   }
   
   .page-header {
     flex-direction: column;
-    gap: 16px;
+    gap: 15px;
     align-items: stretch;
-    padding: 24px;
-    margin-bottom: 24px;
-    
-    h1 {
-      font-size: 1.8rem;
-      text-align: center;
-    }
     
     .el-button {
       width: 100%;
     }
-  }
-  
-  :deep(.el-tabs) {
-    padding: 16px;
-    border-radius: 16px;
-  }
-  
-  :deep(.el-tabs__item) {
-    font-size: 14px;
-    padding: 0 16px;
-    height: 40px;
-    line-height: 40px;
   }
 }
 </style>

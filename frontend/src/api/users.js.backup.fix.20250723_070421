@@ -8,14 +8,6 @@ export function getUser(id) {
   })
 }
 
-// 获取用户信息（别名，为了兼容性）
-export function getUserById(id) {
-  return request({
-    url: `/users/${id}`,
-    method: 'get'
-  })
-}
-
 // 获取用户帖子
 export function getUserPosts(id, params) {
   return request({

@@ -21,7 +21,7 @@
     </div>
     
     <div v-else class="posts-masonry-container">
-      <!-- 🔧 修改：浅灰色背景的三列瀑布流布局 -->
+      <!-- 固定三列瀑布流布局 - 增大帖子尺寸 -->
       <div 
         ref="masonryContainer" 
         class="masonry-grid"
@@ -68,17 +68,17 @@ const props = defineProps({
 
 const emit = defineEmits(['post-deleted', 'post-updated'])
 
-// 响应式列数
+// 响应式列数 - 固定为三列，只在小屏幕减少
 const masonryContainer = ref(null)
 const screenWidth = ref(window.innerWidth)
 const currentColumns = ref(3)
 
-// 根据屏幕宽度计算列数
+// 根据屏幕宽度计算列数 - 保持三列为主
 const calculateColumns = () => {
   const width = screenWidth.value
-  if (width < 768) return 1
-  if (width < 1024) return 2
-  return 3
+  if (width < 768) return 1        // 手机单列
+  if (width < 1024) return 2       // 小平板双列  
+  return 3                         // 桌面三列 (包含大屏)
 }
 
 // 瀑布流列数据
@@ -88,7 +88,7 @@ const columnPosts = computed(() => {
   const columnHeights = new Array(columns).fill(0)
   
   props.posts.forEach((post, index) => {
-    // 智能计算帖子高度（基于真实内容）
+    // 计算帖子预估高度（用于瀑布流布局）
     const estimatedHeight = calculatePostHeight(post)
     
     // 找到当前最短的列
@@ -108,9 +108,9 @@ const columnPosts = computed(() => {
   return result
 })
 
-// 智能计算帖子高度（基于内容类型和图片尺寸）
+// 计算帖子预估高度（基于内容类型）
 const calculatePostHeight = (post) => {
-  let height = 250 // 基础高度: 头部+标题+操作栏
+  let height = 250 // 增加基础高度：头部+标题+操作栏
   
   // 描述文字
   if (post.description) {
@@ -120,26 +120,17 @@ const calculatePostHeight = (post) => {
   // 文字内容
   if (post.content_text) {
     const textLines = Math.ceil(post.content_text.length / 50)
-    height += Math.min(textLines * 32, 200)
+    height += Math.min(textLines * 32, 200) // 增加文字高度
   }
   
-  // 智能图片高度计算
+  // 图片内容 - 增大图片区域高度
   if (post.media && post.media.length > 0) {
     const imageCount = post.media.filter(m => m.media_type === 'image').length
     if (imageCount > 0) {
-      if (imageCount === 1) {
-        // 单图: 使用标准展示尺寸
-        height += 300
-      } else if (imageCount === 2) {
-        // 双图: 两张图各自按单图尺寸垂直排列
-        height += 600 // 300 * 2，让两张图都有完整尺寸
-      } else if (imageCount === 3) {
-        // 三图: 1大+2小布局
-        height += 320
-      } else {
-        // 多图: 紧凑网格布局
-        height += 280
-      }
+      if (imageCount === 1) height += 300       // 单图
+      else if (imageCount === 2) height += 280  // 双图
+      else if (imageCount === 3) height += 320  // 三图
+      else height += 260                        // 多图
     }
     
     // 音频内容
@@ -153,7 +144,7 @@ const calculatePostHeight = (post) => {
     if (post.repost_comment) height += 80
   }
   
-  return height + Math.random() * 40
+  return height + Math.random() * 40 // 添加随机因子避免高度完全相同
 }
 
 // 窗口大小变化监听
@@ -197,15 +188,13 @@ onBeforeUnmount(() => {
 .post-list {
   width: 100%;
   min-height: 600px;
-  // 🔧 关键修复：PostList背景设为透明，继承父级的浅灰色
-  background: transparent;
 }
 
-// 加载状态 - 保持浅灰背景
+// 加载状态 - 三列网格
 .loading-container {
   .masonry-skeleton {
     display: grid;
-    gap: 28px;
+    gap: 30px; // 增大间距
     
     // 桌面三列
     @media (min-width: 1024px) {
@@ -224,11 +213,10 @@ onBeforeUnmount(() => {
     
     .skeleton-item {
       background: white;
-      border-radius: 20px;
-      padding: 28px;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
-      border: 1px solid rgba(0, 0, 0, 0.03);
-      min-height: 350px;
+      border-radius: 16px;
+      padding: 24px; // 增加内边距
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      min-height: 350px; // 增加最小高度
     }
   }
 }
@@ -237,10 +225,6 @@ onBeforeUnmount(() => {
 .empty-container {
   padding: 80px 20px;
   text-align: center;
-  background: white;
-  border-radius: 20px;
-  margin: 20px 0;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
   
   .empty-image {
     font-size: 60px;
@@ -249,30 +233,26 @@ onBeforeUnmount(() => {
   }
 }
 
-// 🔧 关键修复：瀑布流容器 - 保持透明背景，展现浅灰色间隙
+// 三列瀑布流容器 - 增大帖子尺寸
 .posts-masonry-container {
   width: 100%;
-  padding: 12px;
-  // 🔧 重要：保持透明背景，让父级的浅灰色显示出来作为间隙
-  background: transparent;
   
   .masonry-grid {
     display: flex;
     align-items: flex-start;
-    // 🔧 增加间隙来显示浅灰色背景
-    gap: 28px;
+    gap: 30px; // 增大列间距
     
-    // 桌面三列
+    // 桌面三列 - 增大帖子宽度
     &.columns-3 {
       .masonry-column {
-        width: calc(33.333% - 19px);
+        width: calc(33.333% - 20px);
       }
     }
     
     // 平板双列
     &.columns-2 {
       .masonry-column {
-        width: calc(50% - 14px);
+        width: calc(50% - 15px);
       }
     }
     
@@ -286,8 +266,7 @@ onBeforeUnmount(() => {
     .masonry-column {
       display: flex;
       flex-direction: column;
-      // 🔧 增加垂直间隙来显示浅灰色背景
-      gap: 28px;
+      gap: 30px; // 增大垂直间距
       
       .masonry-item {
         width: 100%;
@@ -295,14 +274,13 @@ onBeforeUnmount(() => {
         transform: translateY(30px);
         animation: fadeInUp 0.7s ease forwards;
         
-        // 精致的悬停效果
+        // 增强悬停效果
         &:hover {
-          transform: translateY(-8px) scale(1.015);
+          transform: translateY(-8px) scale(1.02);
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           
           :deep(.post-card) {
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(64, 158, 255, 0.15);
+            box-shadow: 0 20px 64px rgba(0, 0, 0, 0.15);
           }
         }
       }
@@ -310,265 +288,124 @@ onBeforeUnmount(() => {
   }
 }
 
-// PostCard样式优化 - 确保白色卡片与浅灰间隙对比
+// PostCard内部样式增强 - 让帖子更大更醒目
 .masonry-item :deep(.post-card) {
+  // 增加内边距，让内容更宽松
   padding: 28px;
   border-radius: 20px;
   min-height: 200px;
-  // 🔧 确保帖子卡片保持白色
-  background: #ffffff !important;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
   
-  // 细微装饰效果
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
-    pointer-events: none;
-  }
-  
-  // 用户信息区域
+  // 增大头像和用户信息
   .user-info {
     margin-bottom: 20px;
     
     .el-avatar {
-      width: 44px !important;
-      height: 44px !important;
-      border: 2px solid rgba(255, 255, 255, 0.9);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      width: 48px !important;
+      height: 48px !important;
     }
     
     .user-details {
-      margin-left: 12px;
-      
       .username {
-        font-size: 15.5px !important;
+        font-size: 16px !important;
         font-weight: 700 !important;
-        color: #1a1a1a !important;
-        margin-bottom: 2px;
       }
       
       .time {
-        font-size: 13px !important;
-        color: #6b7280 !important;
+        font-size: 14px !important;
       }
     }
   }
   
-  // 标题和描述
+  // 增大标题字体
   .post-title {
     font-size: 22px !important;
-    margin-bottom: 14px !important;
+    margin-bottom: 12px !important;
     line-height: 1.3 !important;
-    color: #111827 !important;
-    font-weight: 800 !important;
   }
   
+  // 增大描述字体
   .post-description {
     font-size: 16px !important;
     margin-bottom: 18px !important;
     line-height: 1.6 !important;
-    color: #4b5563 !important;
   }
   
-  // 文字内容
+  // 增大文字内容
   .post-text {
     padding: 20px !important;
     margin-bottom: 20px !important;
-    background: #f8fafc !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(0, 0, 0, 0.03);
     
     p {
       font-size: 16px !important;
-      line-height: 1.65 !important;
-      color: #1f2937 !important;
+      line-height: 1.7 !important;
     }
   }
   
-  // 🖼️ 图片区域保持智能显示
+  // 增大图片区域
   .post-media {
     margin-bottom: 20px !important;
     
     .images-section {
-      margin-bottom: 16px !important;
+      margin-bottom: 20px !important;
       
       .images-grid {
-        gap: 14px !important;
+        gap: 12px !important;
         border-radius: 16px !important;
-        overflow: hidden;
         
-        // 单图 - 标准展示尺寸
-        &.single-image {
-          .image-item {
-            .media-image {
-              width: 100% !important;
-              min-height: 260px !important;
-              max-height: 480px !important;
-              border-radius: 16px;
-              
-              :deep(.el-image__inner) {
-                object-fit: contain !important;
-                width: 100%;
-                height: 100%;
-              }
-            }
-          }
+        &.single-image .image-item .media-image {
+          min-height: 250px !important;
+          max-height: 400px !important;
         }
         
-        // 🎯 双图 - 垂直并列显示
-        &.two-images {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 16px !important;
-          
-          .image-item {
-            width: 100% !important;
-            
-            .media-image {
-              width: 100% !important;
-              min-height: 240px !important;
-              max-height: 400px !important;
-              border-radius: 14px;
-              
-              :deep(.el-image__inner) {
-                object-fit: contain !important;
-                width: 100%;
-                height: 100%;
-              }
-            }
-          }
+        &.two-images .image-item .media-image {
+          height: 200px !important;
         }
         
-        // 三图及多图布局优化
-        &.three-images {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          gap: 10px !important;
-          
-          .image-item:first-child {
-            grid-row: span 2;
-            
-            .media-image {
-              height: 280px !important;
-              border-radius: 14px;
-            }
-          }
-          
-          .image-item:not(:first-child) .media-image {
-            height: 135px !important;
-            border-radius: 10px;
-          }
-        }
-        
-        &.four-images, &.many-images {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          gap: 10px !important;
-          
-          .image-item .media-image {
-            height: 150px !important;
-            border-radius: 10px;
-          }
-        }
-        
-        // 所有图片通用样式
-        .image-item {
-          border-radius: 14px;
-          overflow: hidden;
-          background: #f3f4f6;
-          
-          .media-image {
-            transition: all 0.3s ease;
-            cursor: pointer;
-            
-            &:hover {
-              transform: scale(1.02);
-            }
-            
-            :deep(.el-image__inner) {
-              display: block;
-              max-width: 100%;
-              height: auto;
-            }
-            
-            :deep(.el-image__error) {
-              background: #f8f9fa;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #909399;
-              font-size: 13px;
-              min-height: 180px;
-            }
-          }
+        &.three-images .image-item .media-image,
+        &.four-images .image-item .media-image {
+          height: 160px !important;
         }
       }
     }
     
-    // 音频播放器
+    // 增大音频播放器
     .audio-section .audio-item .audio-player {
       height: 48px !important;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
   }
   
-  // 操作按钮
+  // 增大操作按钮
   .post-actions {
     padding-top: 20px !important;
-    gap: 24px !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    gap: 30px !important;
     
     .action-button {
-      font-size: 15px !important;
+      font-size: 16px !important;
       padding: 8px 16px !important;
-      border-radius: 10px !important;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        background: rgba(64, 158, 255, 0.08) !important;
-      }
     }
   }
   
-  // 转发相关样式
+  // 转发内容增强
   .repost-header {
     margin-bottom: 16px !important;
     padding-bottom: 12px !important;
-    font-size: 14px !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    font-size: 15px !important;
   }
   
   .repost-comment .repost-comment-content {
     padding: 16px !important;
-    background: #f1f5f9 !important;
-    border-radius: 14px;
-    border: 1px solid rgba(0, 0, 0, 0.02);
     
     .comment-text {
       font-size: 15px !important;
-      color: #334155 !important;
     }
   }
   
   .original-post.is-repost {
     padding: 20px !important;
-    background: #fafbfc !important;
-    border-radius: 14px;
-    border: 1px solid rgba(0, 0, 0, 0.02);
   }
 }
 
-// 入场动画
+// 优化入场动画
 @keyframes fadeInUp {
   to {
     opacity: 1;
@@ -579,8 +416,6 @@ onBeforeUnmount(() => {
 // 响应式优化
 @media (max-width: 1024px) {
   .posts-masonry-container {
-    padding: 10px;
-    
     .masonry-grid {
       gap: 24px;
       
@@ -601,8 +436,6 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .posts-masonry-container {
-    padding: 8px;
-    
     .masonry-grid {
       gap: 20px;
       
@@ -626,24 +459,22 @@ onBeforeUnmount(() => {
   
   .masonry-item :deep(.post-card) {
     padding: 20px;
-    border-radius: 16px;
     
-    // 手机端图片优化
-    .post-media .images-section .images-grid {
-      &.single-image .image-item .media-image {
-        min-height: 220px !important;
-        max-height: 350px !important;
-      }
-      
-      &.two-images .image-item .media-image {
-        min-height: 200px !important;
-        max-height: 320px !important;
-      }
+    .post-title {
+      font-size: 18px !important;
+    }
+    
+    .post-description {
+      font-size: 15px !important;
+    }
+    
+    .post-text p {
+      font-size: 15px !important;
     }
   }
 }
 
-// 性能优化
+// GPU加速和性能优化
 .masonry-grid {
   transform: translateZ(0);
   will-change: auto;
@@ -658,27 +489,5 @@ onBeforeUnmount(() => {
 .masonry-item {
   contain: layout style paint;
   transform: translateZ(0);
-}
-
-// 深色模式适配
-@media (prefers-color-scheme: dark) {
-  .post-list {
-    background: transparent;
-  }
-  
-  .masonry-item :deep(.post-card) {
-    background: #1f2937 !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    color: #f9fafb !important;
-    
-    .post-title {
-      color: #f9fafb !important;
-    }
-    
-    .post-text {
-      background: #111827 !important;
-      border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    }
-  }
 }
 </style>

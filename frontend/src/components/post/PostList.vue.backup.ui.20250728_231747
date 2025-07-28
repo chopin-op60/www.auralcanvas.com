@@ -21,7 +21,7 @@
     </div>
     
     <div v-else class="posts-masonry-container">
-      <!-- 🔧 修改：浅灰色背景的三列瀑布流布局 -->
+      <!-- 舒适背景的三列瀑布流布局 -->
       <div 
         ref="masonryContainer" 
         class="masonry-grid"
@@ -197,15 +197,15 @@ onBeforeUnmount(() => {
 .post-list {
   width: 100%;
   min-height: 600px;
-  // 🔧 关键修复：PostList背景设为透明，继承父级的浅灰色
+  // 舒适的浅灰背景，护眼
   background: transparent;
 }
 
-// 加载状态 - 保持浅灰背景
+// 加载状态 - 舒适背景
 .loading-container {
   .masonry-skeleton {
     display: grid;
-    gap: 28px;
+    gap: 36px;
     
     // 桌面三列
     @media (min-width: 1024px) {
@@ -249,30 +249,29 @@ onBeforeUnmount(() => {
   }
 }
 
-// 🔧 关键修复：瀑布流容器 - 保持透明背景，展现浅灰色间隙
+// 三列瀑布流容器 - 舒适的视觉间距
 .posts-masonry-container {
   width: 100%;
-  padding: 12px;
-  // 🔧 重要：保持透明背景，让父级的浅灰色显示出来作为间隙
+  padding: 8px;
+  // 使用微妙的背景渐变提升视觉层次
   background: transparent;
   
   .masonry-grid {
     display: flex;
     align-items: flex-start;
-    // 🔧 增加间隙来显示浅灰色背景
-    gap: 28px;
+    gap: 36px;
     
     // 桌面三列
     &.columns-3 {
       .masonry-column {
-        width: calc(33.333% - 19px);
+        width: calc(33.333% - 24px);
       }
     }
     
     // 平板双列
     &.columns-2 {
       .masonry-column {
-        width: calc(50% - 14px);
+        width: calc(50% - 18px);
       }
     }
     
@@ -286,8 +285,7 @@ onBeforeUnmount(() => {
     .masonry-column {
       display: flex;
       flex-direction: column;
-      // 🔧 增加垂直间隙来显示浅灰色背景
-      gap: 28px;
+      gap: 36px;
       
       .masonry-item {
         width: 100%;
@@ -297,12 +295,12 @@ onBeforeUnmount(() => {
         
         // 精致的悬停效果
         &:hover {
-          transform: translateY(-8px) scale(1.015);
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transform: translateY(-12px) scale(1.02);
+          transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
           
           :deep(.post-card) {
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(64, 158, 255, 0.15);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(64, 158, 255, 0.2);
           }
         }
       }
@@ -310,18 +308,16 @@ onBeforeUnmount(() => {
   }
 }
 
-// PostCard样式优化 - 确保白色卡片与浅灰间隙对比
+// PostCard样式优化 - 重点修复图片显示
 .masonry-item :deep(.post-card) {
-  padding: 28px;
-  border-radius: 20px;
+  padding: 32px;
+  border-radius: 24px;
   min-height: 200px;
-  // 🔧 确保帖子卡片保持白色
-  background: #ffffff !important;
+  background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
   
   // 细微装饰效果
   &::before {
@@ -337,11 +333,11 @@ onBeforeUnmount(() => {
   
   // 用户信息区域
   .user-info {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     
     .el-avatar {
-      width: 44px !important;
-      height: 44px !important;
+      width: 48px !important;
+      height: 48px !important;
       border: 2px solid rgba(255, 255, 255, 0.9);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
@@ -350,14 +346,14 @@ onBeforeUnmount(() => {
       margin-left: 12px;
       
       .username {
-        font-size: 15.5px !important;
+        font-size: 17px !important;
         font-weight: 700 !important;
         color: #1a1a1a !important;
         margin-bottom: 2px;
       }
       
       .time {
-        font-size: 13px !important;
+        font-size: 14px !important;
         color: #6b7280 !important;
       }
     }
@@ -365,45 +361,45 @@ onBeforeUnmount(() => {
   
   // 标题和描述
   .post-title {
-    font-size: 22px !important;
-    margin-bottom: 14px !important;
+    font-size: 24px !important;
+    margin-bottom: 16px !important;
     line-height: 1.3 !important;
     color: #111827 !important;
     font-weight: 800 !important;
   }
   
   .post-description {
-    font-size: 16px !important;
-    margin-bottom: 18px !important;
+    font-size: 17px !important;
+    margin-bottom: 20px !important;
     line-height: 1.6 !important;
     color: #4b5563 !important;
   }
   
   // 文字内容
   .post-text {
-    padding: 20px !important;
-    margin-bottom: 20px !important;
+    padding: 24px !important;
+    margin-bottom: 24px !important;
     background: #f8fafc !important;
-    border-radius: 14px !important;
+    border-radius: 16px !important;
     border: 1px solid rgba(0, 0, 0, 0.03);
     
     p {
-      font-size: 16px !important;
-      line-height: 1.65 !important;
+      font-size: 17px !important;
+      line-height: 1.7 !important;
       color: #1f2937 !important;
     }
   }
   
-  // 🖼️ 图片区域保持智能显示
+  // 🖼️ 重点优化：图片区域智能显示
   .post-media {
-    margin-bottom: 20px !important;
+    margin-bottom: 24px !important;
     
     .images-section {
-      margin-bottom: 16px !important;
+      margin-bottom: 20px !important;
       
       .images-grid {
-        gap: 14px !important;
-        border-radius: 16px !important;
+        gap: 16px !important;
+        border-radius: 20px !important;
         overflow: hidden;
         
         // 单图 - 标准展示尺寸
@@ -411,12 +407,12 @@ onBeforeUnmount(() => {
           .image-item {
             .media-image {
               width: 100% !important;
-              min-height: 260px !important;
-              max-height: 480px !important;
-              border-radius: 16px;
+              min-height: 280px !important;
+              max-height: 500px !important; // 增加最大高度适配长图
+              border-radius: 20px;
               
               :deep(.el-image__inner) {
-                object-fit: contain !important;
+                object-fit: contain !important; // 保持完整图片，不裁剪
                 width: 100%;
                 height: 100%;
               }
@@ -424,23 +420,23 @@ onBeforeUnmount(() => {
           }
         }
         
-        // 🎯 双图 - 垂直并列显示
+        // 🎯 双图 - 按单图尺寸垂直并列显示
         &.two-images {
           display: flex !important;
-          flex-direction: column !important;
-          gap: 16px !important;
+          flex-direction: column !important; // 垂直排列
+          gap: 20px !important; // 增加间距
           
           .image-item {
             width: 100% !important;
             
             .media-image {
               width: 100% !important;
-              min-height: 240px !important;
-              max-height: 400px !important;
-              border-radius: 14px;
+              min-height: 280px !important; // 与单图相同高度
+              max-height: 480px !important; // 与单图相似的最大高度
+              border-radius: 16px;
               
               :deep(.el-image__inner) {
-                object-fit: contain !important;
+                object-fit: contain !important; // 完整显示，不裁剪
                 width: 100%;
                 height: 100%;
               }
@@ -448,41 +444,54 @@ onBeforeUnmount(() => {
           }
         }
         
-        // 三图及多图布局优化
+        // 三图布局 - 1大2小
         &.three-images {
           display: grid !important;
           grid-template-columns: 1fr 1fr !important;
-          gap: 10px !important;
+          gap: 12px !important;
           
           .image-item:first-child {
             grid-row: span 2;
             
             .media-image {
-              height: 280px !important;
-              border-radius: 14px;
+              height: 300px !important;
+              border-radius: 16px;
+              
+              :deep(.el-image__inner) {
+                object-fit: cover !important;
+              }
             }
           }
           
           .image-item:not(:first-child) .media-image {
-            height: 135px !important;
-            border-radius: 10px;
+            height: 144px !important;
+            border-radius: 12px;
+            
+            :deep(.el-image__inner) {
+              object-fit: cover !important;
+            }
           }
         }
         
+        // 四图及以上 - 紧凑网格
         &.four-images, &.many-images {
           display: grid !important;
           grid-template-columns: 1fr 1fr !important;
-          gap: 10px !important;
+          gap: 12px !important;
           
           .image-item .media-image {
-            height: 150px !important;
-            border-radius: 10px;
+            height: 160px !important;
+            border-radius: 12px;
+            
+            :deep(.el-image__inner) {
+              object-fit: cover !important;
+            }
           }
         }
         
         // 所有图片通用样式
         .image-item {
-          border-radius: 14px;
+          border-radius: 16px;
           overflow: hidden;
           background: #f3f4f6;
           
@@ -494,20 +503,23 @@ onBeforeUnmount(() => {
               transform: scale(1.02);
             }
             
+            // 长图和特殊尺寸优化
             :deep(.el-image__inner) {
               display: block;
+              // 对于长图，确保完整显示
               max-width: 100%;
               height: auto;
             }
             
+            // 加载错误时的样式
             :deep(.el-image__error) {
               background: #f8f9fa;
               display: flex;
               align-items: center;
               justify-content: center;
               color: #909399;
-              font-size: 13px;
-              min-height: 180px;
+              font-size: 14px;
+              min-height: 200px;
             }
           }
         }
@@ -516,7 +528,7 @@ onBeforeUnmount(() => {
     
     // 音频播放器
     .audio-section .audio-item .audio-player {
-      height: 48px !important;
+      height: 52px !important;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
@@ -524,14 +536,14 @@ onBeforeUnmount(() => {
   
   // 操作按钮
   .post-actions {
-    padding-top: 20px !important;
-    gap: 24px !important;
+    padding-top: 24px !important;
+    gap: 32px !important;
     border-top: 1px solid rgba(0, 0, 0, 0.04);
     
     .action-button {
-      font-size: 15px !important;
-      padding: 8px 16px !important;
-      border-radius: 10px !important;
+      font-size: 16px !important;
+      padding: 10px 20px !important;
+      border-radius: 12px !important;
       transition: all 0.3s ease;
       
       &:hover {
@@ -542,28 +554,28 @@ onBeforeUnmount(() => {
   
   // 转发相关样式
   .repost-header {
-    margin-bottom: 16px !important;
-    padding-bottom: 12px !important;
-    font-size: 14px !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 16px !important;
+    font-size: 15px !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   }
   
   .repost-comment .repost-comment-content {
-    padding: 16px !important;
+    padding: 20px !important;
     background: #f1f5f9 !important;
-    border-radius: 14px;
+    border-radius: 16px;
     border: 1px solid rgba(0, 0, 0, 0.02);
     
     .comment-text {
-      font-size: 15px !important;
+      font-size: 16px !important;
       color: #334155 !important;
     }
   }
   
   .original-post.is-repost {
-    padding: 20px !important;
+    padding: 24px !important;
     background: #fafbfc !important;
-    border-radius: 14px;
+    border-radius: 16px;
     border: 1px solid rgba(0, 0, 0, 0.02);
   }
 }
@@ -579,35 +591,35 @@ onBeforeUnmount(() => {
 // 响应式优化
 @media (max-width: 1024px) {
   .posts-masonry-container {
-    padding: 10px;
+    padding: 6px;
     
     .masonry-grid {
-      gap: 24px;
+      gap: 28px;
       
       .masonry-column {
-        gap: 24px;
+        gap: 28px;
       }
     }
   }
   
   .masonry-item :deep(.post-card) {
-    padding: 24px;
+    padding: 28px;
     
     .post-title {
-      font-size: 20px !important;
+      font-size: 22px !important;
     }
   }
 }
 
 @media (max-width: 768px) {
   .posts-masonry-container {
-    padding: 8px;
+    padding: 4px;
     
     .masonry-grid {
-      gap: 20px;
+      gap: 24px;
       
       .masonry-column {
-        gap: 20px;
+        gap: 24px;
         width: 100% !important;
       }
     }
@@ -615,29 +627,29 @@ onBeforeUnmount(() => {
   
   .loading-container {
     .masonry-skeleton {
-      gap: 20px;
+      gap: 24px;
       
       .skeleton-item {
-        padding: 20px;
-        min-height: 280px;
+        padding: 24px;
+        min-height: 300px;
       }
     }
   }
   
   .masonry-item :deep(.post-card) {
-    padding: 20px;
-    border-radius: 16px;
+    padding: 24px;
+    border-radius: 20px;
     
     // 手机端图片优化
     .post-media .images-section .images-grid {
       &.single-image .image-item .media-image {
-        min-height: 220px !important;
-        max-height: 350px !important;
+        min-height: 250px !important;
+        max-height: 400px !important;
       }
       
       &.two-images .image-item .media-image {
-        min-height: 200px !important;
-        max-height: 320px !important;
+        min-height: 220px !important;
+        max-height: 350px !important;
       }
     }
   }
@@ -663,7 +675,7 @@ onBeforeUnmount(() => {
 // 深色模式适配
 @media (prefers-color-scheme: dark) {
   .post-list {
-    background: transparent;
+    background: #0f1419;
   }
   
   .masonry-item :deep(.post-card) {

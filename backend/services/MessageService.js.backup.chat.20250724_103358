@@ -5,7 +5,7 @@ class MessageService extends BaseService {
         super('messages');
     }
 
-    // 🔥 获取用户的所有对话 - 过滤隐藏的对话
+    // 获取用户的所有对话 - 修复查询逻辑
     async getUserConversations(userId) {
         try {
             const safeUserId = parseInt(userId);
@@ -41,16 +41,13 @@ class MessageService extends BaseService {
                 LEFT JOIN messages unread_m ON unread_m.conversation_id = c.id 
                     AND unread_m.receiver_id = ? 
                     AND unread_m.is_read = FALSE
-                LEFT JOIN conversation_hidden ch ON ch.conversation_id = c.id 
-                    AND ch.user_id = ?
-                WHERE (c.user1_id = ? OR c.user2_id = ?)
-                AND ch.id IS NULL -- 排除被隐藏的对话
+                WHERE c.user1_id = ? OR c.user2_id = ?
                 GROUP BY c.id, c.last_message_at, c.created_at, u.id, u.username, u.avatar, u.bio, m.content, m.message_type
                 ORDER BY c.last_message_at DESC
             `;
             
             console.log('Executing conversations query for user:', safeUserId);
-            const [rows] = await this.db.execute(query, [safeUserId, safeUserId, safeUserId, safeUserId, safeUserId]);
+            const [rows] = await this.db.execute(query, [safeUserId, safeUserId, safeUserId, safeUserId]);
             
             const conversations = rows.map(row => ({
                 id: row.id,
@@ -67,7 +64,7 @@ class MessageService extends BaseService {
                 }
             }));
             
-            console.log('Found conversations (excluding hidden):', conversations.length);
+            console.log('Found conversations:', conversations.length);
             console.log('Conversations details:', conversations.map(c => ({
                 id: c.id,
                 other_user: c.other_user.username,
@@ -178,28 +175,7 @@ class MessageService extends BaseService {
         }
     }
 
-    // 🔥 检查用户是否可以发送消息（需要是好友关系）
-    async canSendMessage(senderId, receiverId) {
-        try {
-            const safeSenderId = parseInt(senderId);
-            const safeReceiverId = parseInt(receiverId);
-            
-            // 检查是否为好友关系
-            const [friendship] = await this.db.execute(
-                `SELECT COUNT(*) as count FROM friends 
-                 WHERE ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))
-                 AND status = 'accepted'`,
-                [safeSenderId, safeReceiverId, safeReceiverId, safeSenderId]
-            );
-            
-            return friendship[0].count > 0;
-        } catch (error) {
-            console.error('Error in canSendMessage:', error);
-            throw error;
-        }
-    }
-
-    // 发送普通消息 - 增加好友验证
+    // 发送普通消息
     async sendMessage({ conversationId, senderId, receiverId, content, messageType = 'text' }) {
         try {
             const safeConversationId = parseInt(conversationId);
@@ -223,12 +199,6 @@ class MessageService extends BaseService {
             const actualReceiverId = safeReceiverId || (conv.user1_id === safeSenderId ? conv.user2_id : conv.user1_id);
 
             console.log('Actual receiver ID:', actualReceiverId);
-
-            // 🔥 新增：验证是否为好友关系
-            const canSend = await this.canSendMessage(safeSenderId, actualReceiverId);
-            if (!canSend) {
-                throw new Error('Can only send messages to friends');
-            }
 
             // 创建消息
             const message = await this.create({
@@ -257,7 +227,7 @@ class MessageService extends BaseService {
         }
     }
 
-    // 分享帖子到对话 - 增加好友验证
+    // 分享帖子到对话
     async sharePostToConversation({ conversationId, senderId, receiverId, postId, comment = null }) {
         try {
             const safeConversationId = parseInt(conversationId);
@@ -296,12 +266,6 @@ class MessageService extends BaseService {
             // 确定接收者ID
             const conv = conversation[0];
             const actualReceiverId = safeReceiverId || (conv.user1_id === safeSenderId ? conv.user2_id : conv.user1_id);
-
-            // 🔥 新增：验证是否为好友关系
-            const canSend = await this.canSendMessage(safeSenderId, actualReceiverId);
-            if (!canSend) {
-                throw new Error('Can only send posts to friends');
-            }
 
             // 创建帖子分享消息
             const content = comment ? comment.trim() : `Shared a post: ${post[0].title}`;
@@ -392,14 +356,6 @@ class MessageService extends BaseService {
 
             if (existing.length > 0) {
                 console.log('Found existing conversation:', existing[0].id);
-                
-                // 如果对话存在，取消隐藏状态
-                await this.db.execute(
-                    `DELETE FROM conversation_hidden 
-                     WHERE conversation_id = ? AND (user_id = ? OR user_id = ?)`,
-                    [existing[0].id, safeUser1Id, safeUser2Id]
-                );
-                
                 return existing[0];
             }
 
@@ -438,71 +394,6 @@ class MessageService extends BaseService {
             return hasAccess;
         } catch (error) {
             console.error('Error in hasConversationAccess:', error);
-            throw error;
-        }
-    }
-
-    // 🔥 新增：删除/隐藏对话
-    async deleteConversation(conversationId, userId) {
-        try {
-            const safeConversationId = parseInt(conversationId);
-            const safeUserId = parseInt(userId);
-            
-            console.log('Deleting conversation:', safeConversationId, 'for user:', safeUserId);
-            
-            // 验证用户有访问权限
-            const hasAccess = await this.hasConversationAccess(safeConversationId, safeUserId);
-            if (!hasAccess) {
-                throw new Error('Cannot delete conversation: access denied');
-            }
-            
-            // 将对话添加到隐藏列表（只对当前用户隐藏）
-            await this.db.execute(
-                `INSERT INTO conversation_hidden (conversation_id, user_id) 
-                 VALUES (?, ?) 
-                 ON DUPLICATE KEY UPDATE hidden_at = NOW()`,
-                [safeConversationId, safeUserId]
-            );
-            
-            console.log('Conversation hidden for user:', safeUserId);
-            
-            // 检查是否两个用户都隐藏了对话
-            const [hiddenCount] = await this.db.execute(
-                'SELECT COUNT(*) as count FROM conversation_hidden WHERE conversation_id = ?',
-                [safeConversationId]
-            );
-            
-            // 如果两个用户都隐藏了对话，则真正删除对话和消息
-            if (hiddenCount[0].count >= 2) {
-                console.log('Both users hidden conversation, permanently deleting...');
-                
-                // 删除相关消息（外键会自动处理）
-                await this.db.execute(
-                    'DELETE FROM messages WHERE conversation_id = ?',
-                    [safeConversationId]
-                );
-                
-                // 删除对话
-                await this.db.execute(
-                    'DELETE FROM conversations WHERE id = ?',
-                    [safeConversationId]
-                );
-                
-                console.log('Conversation permanently deleted');
-                
-                return {
-                    hidden: false,
-                    permanently_deleted: true
-                };
-            }
-            
-            return {
-                hidden: true,
-                permanently_deleted: false
-            };
-            
-        } catch (error) {
-            console.error('Error in deleteConversation:', error);
             throw error;
         }
     }

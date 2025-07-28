@@ -2,28 +2,7 @@
   <div class="home-page">
     <div class="welcome-banner">
       <h1>Welcome to AuralCanvas</h1>
-      <p>Visualize Music. Share Your World.</p>
-    </div>
-    
-    <!-- 🔧 修复：搜索框按钮样式和功能 -->
-    <div class="search-section">
-      <el-input
-        v-model="searchKeyword"
-        placeholder="Search posts, users, or topics..."
-        class="search-input"
-        size="large"
-        @keyup.enter="handleKeyboardSearch"
-        clearable
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-        <template #append>
-          <el-button @click="handleButtonSearch" :disabled="!searchKeyword.trim()">
-            <el-icon><Search /></el-icon>
-          </el-button>
-        </template>
-      </el-input>
+      <p>Share your creativity and discover amazing multimedia content</p>
     </div>
     
     <div class="content-tabs">
@@ -79,7 +58,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import PostList from '@/components/post/PostList.vue'
 import { getPostList, searchPosts } from '@/api/posts'
-import { Close, Search } from '@element-plus/icons-vue'
+import { Close } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,7 +67,6 @@ const activeTab = ref('latest')
 const posts = ref([])
 const loading = ref(false)
 const currentSearchKeyword = ref('')
-const searchKeyword = ref('')
 
 // Search mode detection
 const isSearchMode = computed(() => currentSearchKeyword.value !== '')
@@ -102,9 +80,8 @@ watch(
   (newQuery) => {
     if (newQuery.tab === 'search' && newQuery.q) {
       currentSearchKeyword.value = newQuery.q
-      searchKeyword.value = newQuery.q
       activeTab.value = 'search'
-      performSearch(newQuery.q)
+      handleSearch(newQuery.q)
     } else if (activeTab.value === 'search' && !newQuery.q) {
       clearSearch()
     }
@@ -112,52 +89,14 @@ watch(
   { immediate: true }
 )
 
-// 🔧 修复：分别处理键盘和按钮搜索
-const handleKeyboardSearch = () => {
-  const searchTerm = searchKeyword.value?.trim()
-  if (!searchTerm) {
-    ElMessage.warning('Please enter a search keyword')
-    return
-  }
-  performSearch(searchTerm)
-}
-
-const handleButtonSearch = () => {
-  const searchTerm = searchKeyword.value?.trim()
-  if (!searchTerm) {
-    ElMessage.warning('Please enter a search keyword')
-    return
-  }
-  performSearch(searchTerm)
-}
-
-// 🔧 修复：统一的搜索执行函数
-const performSearch = async (keyword) => {
-  if (!keyword || typeof keyword !== 'string') {
-    ElMessage.warning('Please enter a valid search keyword')
-    return
-  }
-  
-  const searchTerm = keyword.trim()
-  
-  console.log('Searching for:', searchTerm)
-  currentSearchKeyword.value = searchTerm
-  activeTab.value = 'search'
-  
-  // 更新URL
-  router.push({
-    path: '/home',
-    query: { 
-      tab: 'search',
-      q: searchTerm
-    }
-  })
-  
+// Handle search
+const handleSearch = async (keyword) => {
+  console.log('Searching for:', keyword)
   loading.value = true
   
   try {
     const params = {
-      q: searchTerm,
+      q: keyword,
       page: 1,
       limit: 30
     }
@@ -170,9 +109,7 @@ const performSearch = async (keyword) => {
       console.log('Search results:', posts.value.length)
       
       if (posts.value.length === 0) {
-        ElMessage.info(`No posts found for "${searchTerm}"`)
-      } else {
-        ElMessage.success(`Found ${posts.value.length} results for "${searchTerm}"`)
+        ElMessage.info(`No posts found for "${keyword}"`)
       }
     } else {
       console.warn('Invalid search response format:', response)
@@ -190,7 +127,6 @@ const performSearch = async (keyword) => {
 // Clear search
 const clearSearch = () => {
   currentSearchKeyword.value = ''
-  searchKeyword.value = ''
   activeTab.value = 'latest'
   router.push('/home')
   loadPosts('latest')
@@ -206,7 +142,7 @@ const handleTabChange = async (tab) => {
       activeTab.value = 'latest'
       return
     }
-    await performSearch(currentSearchKeyword.value)
+    await handleSearch(currentSearchKeyword.value)
   } else {
     await loadPosts(tab)
   }
@@ -262,7 +198,7 @@ const handlePostDeleted = (deletedPostId) => {
   
   if (posts.value.length === 0) {
     if (isSearchMode.value) {
-      performSearch(currentSearchKeyword.value)
+      handleSearch(currentSearchKeyword.value)
     } else {
       loadPosts(activeTab.value)
     }
@@ -283,9 +219,8 @@ const handlePostUpdated = (updateData) => {
 onMounted(() => {
   if (route.query.tab === 'search' && route.query.q) {
     currentSearchKeyword.value = route.query.q
-    searchKeyword.value = route.query.q
     activeTab.value = 'search'
-    performSearch(route.query.q)
+    handleSearch(route.query.q)
   } else {
     loadPosts('latest')
   }
@@ -296,133 +231,52 @@ onMounted(() => {
 .home-page {
   width: 100%;
   margin: 0;
-  padding: 32px;
+  padding: 20px;
   min-height: 100vh;
-  // 🔧 保持浅灰色背景作为帖子间隙
+  // 改为更舒适的浅灰色背景
   background: #f8fafb;
 }
 
 .welcome-banner {
   text-align: center;
-  padding: 60px 30px;
+  padding: 50px 30px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-radius: 24px;
-  margin-bottom: 32px;
+  border-radius: 20px;
+  margin-bottom: 30px;
   
   h1 {
-    font-size: 3.2rem;
-    margin-bottom: 16px;
+    font-size: 3rem;
+    margin-bottom: 12px;
     font-weight: 800;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
   
   p {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     opacity: 0.95;
     max-width: 600px;
     margin: 0 auto;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-  }
-}
-
-// 🔧 修复：搜索框样式，按钮形状优化
-.search-section {
-  margin-bottom: 32px;
-  display: flex;
-  justify-content: center;
-  
-  .search-input {
-    max-width: 600px;
-    width: 100%;
-    
-    :deep(.el-input__wrapper) {
-      border-radius: 16px;
-      padding: 12px 16px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-      border: 2px solid transparent;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-      }
-      
-      &.is-focus {
-        border-color: #409EFF;
-        box-shadow: 0 6px 24px rgba(64, 158, 255, 0.2);
-      }
-    }
-    
-    :deep(.el-input__inner) {
-      font-size: 16px;
-      font-weight: 500;
-      
-      &::placeholder {
-        color: #909399;
-        font-weight: 400;
-      }
-    }
-    
-    :deep(.el-input__prefix) {
-      color: #409EFF;
-    }
-    
-    // 🔧 关键修复：按钮样式优化，圆形图标按钮
-    :deep(.el-input-group__append) {
-      background: #409EFF;
-      border: none;
-      border-radius: 0 14px 14px 0;
-      padding: 0;
-      width: 48px;
-      
-      .el-button {
-        background: transparent;
-        border: none;
-        color: white;
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        
-        &:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-        
-        &:disabled {
-          background: transparent;
-          color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .el-icon {
-          margin-right: 0;
-          font-size: 16px;
-        }
-      }
-    }
   }
 }
 
 .content-tabs {
-  // 🔧 关键修复：完全透明背景，让浅灰色间隙显示
-  background: transparent;
-  padding: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06);
   min-height: 800px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .search-results-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  background: white;
-  border-radius: 16px;
-  margin: 0 0 24px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 0 0 24px 0;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 24px;
   
   h3 {
     margin: 0;
@@ -444,158 +298,39 @@ onMounted(() => {
 
 :deep(.el-tabs__content) {
   padding-top: 24px;
+  // 让标签内容也使用舒适背景色
   background: transparent;
 }
 
-// 🔧 关键修复：Tabs导航栏样式优化 - 标签垂直居中
 :deep(.el-tabs__header) {
   margin-bottom: 0;
-  background: white;
-  border-radius: 16px;
-  padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  overflow: hidden;
 }
 
-:deep(.el-tabs__nav-wrap) {
-  padding: 0 20px;
-  margin-bottom: 0;
-  
-  &::after {
-    background-color: rgba(229, 231, 235, 0.8);
-  }
-}
-
-:deep(.el-tabs__nav-scroll) {
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-:deep(.el-tabs__nav) {
-  height: 100%;
-  display: flex;
-  align-items: center;
+:deep(.el-tabs__nav-wrap::after) {
+  background-color: rgba(229, 231, 235, 0.8);
 }
 
 :deep(.el-tabs__item) {
   font-size: 16px;
   font-weight: 600;
-  padding: 0 20px;
-  // 🔧 关键修复：固定高度并垂直居中
+  padding: 0 24px;
   height: 48px;
   line-height: 48px;
-  border-bottom: none;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  &:hover {
-    color: #409EFF;
-    background: rgba(64, 158, 255, 0.05);
-  }
-  
-  &.is-active {
-    color: #409EFF;
-    background: rgba(64, 158, 255, 0.08);
-    font-weight: 700;
-  }
-}
-
-:deep(.el-tabs__active-bar) {
-  bottom: 0;
-  height: 3px;
-  background: #409EFF;
 }
 
 // 响应式设计
 @media (max-width: 768px) {
   .home-page {
-    padding: 20px;
+    padding: 15px;
     background: #f8fafb;
   }
   
   .welcome-banner {
-    padding: 48px 24px;
-    margin-bottom: 24px;
-    border-radius: 20px;
+    padding: 40px 20px;
+    margin-bottom: 20px;
     
     h1 {
-      font-size: 2.6rem;
-    }
-    
-    p {
-      font-size: 1.2rem;
-    }
-  }
-  
-  .search-section {
-    margin-bottom: 24px;
-    padding: 0 4px;
-    
-    .search-input {
-      :deep(.el-input__wrapper) {
-        padding: 10px 14px;
-      }
-      
-      :deep(.el-input__inner) {
-        font-size: 15px;
-      }
-      
-      :deep(.el-input-group__append) {
-        width: 44px;
-        
-        .el-button .el-icon {
-          font-size: 14px;
-        }
-      }
-    }
-  }
-  
-  .content-tabs {
-    padding: 0;
-  }
-  
-  .search-results-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 16px 20px;
-    margin: 0 0 20px 0;
-    
-    h3 {
-      font-size: 18px;
-    }
-  }
-  
-  :deep(.el-tabs__header) {
-    border-radius: 16px;
-  }
-  
-  :deep(.el-tabs__nav-wrap) {
-    padding: 0 16px;
-  }
-  
-  :deep(.el-tabs__item) {
-    font-size: 14px;
-    padding: 0 12px;
-    height: 44px;
-    line-height: 44px;
-  }
-}
-
-@media (max-width: 480px) {
-  .home-page {
-    padding: 16px;
-  }
-  
-  .welcome-banner {
-    padding: 36px 20px;
-    
-    h1 {
-      font-size: 2.2rem;
+      font-size: 2.4rem;
     }
     
     p {
@@ -603,25 +338,27 @@ onMounted(() => {
     }
   }
   
-  .search-section .search-input {
-    :deep(.el-input-group__append) {
-      width: 40px;
-      
-      .el-button .el-icon {
-        font-size: 13px;
-      }
+  .content-tabs {
+    padding: 20px;
+    border-radius: 16px;
+  }
+  
+  .search-results-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    padding-bottom: 16px;
+    
+    h3 {
+      font-size: 18px;
     }
   }
   
-  :deep(.el-tabs__nav-wrap) {
-    padding: 0 12px;
-  }
-  
   :deep(.el-tabs__item) {
-    font-size: 13px;
-    padding: 0 10px;
-    height: 40px;
-    line-height: 40px;
+    font-size: 14px;
+    padding: 0 16px;
+    height: 44px;
+    line-height: 44px;
   }
 }
 </style>

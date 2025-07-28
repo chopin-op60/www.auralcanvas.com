@@ -134,8 +134,7 @@ onMounted(() => {
   border-right: 1px solid #e4e7ed;
   position: fixed;
   left: 0;
-  // 🔧 关键修复：从顶部开始，不留空隙
-  top: 0;
+  top: 60px;
   z-index: 999;
   transition: width 0.3s ease;
   display: flex;
@@ -151,8 +150,6 @@ onMounted(() => {
   border-bottom: 1px solid #f0f0f0;
   display: flex;
   justify-content: flex-end;
-  // 🔧 增加顶部padding，给关闭按钮更多空间
-  padding-top: 16px;
   
   .collapse-btn {
     color: #909399;

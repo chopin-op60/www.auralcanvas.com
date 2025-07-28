@@ -1,10 +1,16 @@
 <template>
   <div class="profile-page">
-    <!-- 重新设计的用户信息卡片 - 水平布局 -->
+    <!-- 用户信息卡片 -->
     <div class="profile-card">
-      <div class="profile-content">
-        <!-- 左侧用户信息区域 -->
-        <div class="user-info-section">
+      <div class="profile-header">
+        <!-- 优化后的封面图 -->
+        <div class="cover-image" :style="coverImageStyle">
+          <div class="cover-gradient-overlay"></div>
+          <div class="cover-bottom-overlay"></div>
+        </div>
+        
+        <!-- 用户信息 -->
+        <div class="user-info">
           <div class="avatar-section">
             <el-avatar :size="120" :src="avatarUrl" class="user-avatar">
               <el-icon><User /></el-icon>
@@ -45,11 +51,6 @@
               </el-button>
             </div>
           </div>
-        </div>
-        
-        <!-- 右侧背景区域 -->
-        <div class="background-section" :style="backgroundImageStyle">
-          <div class="gradient-overlay"></div>
         </div>
       </div>
     </div>
@@ -97,13 +98,13 @@ const avatarUrl = computed(() => {
   return userInfo.value.avatar ? getFileUrl(userInfo.value.avatar) : null
 })
 
-// 计算右侧背景图样式
-const backgroundImageStyle = computed(() => {
+// 计算封面图样式 - 优化右侧布局和渐变
+const coverImageStyle = computed(() => {
   if (userInfo.value.cover_image) {
     return {
       backgroundImage: `url(${getFileUrl(userInfo.value.cover_image)})`,
       backgroundSize: 'cover',
-      backgroundPosition: 'center',
+      backgroundPosition: 'center right', // 图片靠右显示
       backgroundRepeat: 'no-repeat'
     }
   }
@@ -192,58 +193,94 @@ onMounted(() => {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   margin-bottom: 30px;
   border: 1px solid rgba(0, 0, 0, 0.04);
-  min-height: 300px; // 确保卡片有足够高度
 }
 
-// 🎯 核心：水平布局设计
-.profile-content {
-  display: flex;
-  min-height: 300px;
+.profile-header {
+  position: relative;
   
-  // 左侧用户信息区域
-  .user-info-section {
-    flex: 1;
-    max-width: 500px; // 限制左侧宽度
-    padding: 40px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+  .cover-image {
+    height: 200px;
     position: relative;
-    z-index: 10;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    
+    // 🎨 左侧白色渐变遮罩（当有自定义封面图时）
+    .cover-gradient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 60%; // 覆盖左侧60%区域
+      height: 100%;
+      background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.95) 0%,    // 左边接近纯白
+        rgba(255, 255, 255, 0.8) 30%,   // 30%处开始透明
+        rgba(255, 255, 255, 0.4) 60%,   // 60%处半透明
+        rgba(255, 255, 255, 0) 100%     // 右边完全透明
+      );
+      pointer-events: none;
+    }
+    
+    // 底部渐变（保持原有效果）
+    .cover-bottom-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      background: linear-gradient(
+        transparent 0%,
+        rgba(0, 0, 0, 0.1) 50%,
+        rgba(0, 0, 0, 0.3) 100%
+      );
+      pointer-events: none;
+    }
+    
+    // 如果没有自定义封面图，隐藏左侧渐变
+    &:not([style*="background-image"]) .cover-gradient-overlay {
+      display: none;
+    }
+  }
+  
+  .user-info {
+    padding: 0 40px 40px;
+    position: relative;
+    background: white;
     
     .avatar-section {
-      margin-bottom: 24px;
+      position: relative;
+      margin-top: -60px;
+      margin-bottom: 20px;
+      z-index: 10; // 确保头像在渐变层之上
       
       .user-avatar {
         border: 4px solid white;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-        background: white;
+        background: white; // 确保头像背景为白色
       }
     }
     
     .user-details {
       .username {
-        font-size: 2.2rem;
+        font-size: 2rem;
         font-weight: 800;
         color: #111827;
-        margin-bottom: 12px;
-        line-height: 1.2;
+        margin-bottom: 8px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); // 轻微阴影增强可读性
       }
       
       .bio {
         font-size: 1.1rem;
         color: #4b5563;
         line-height: 1.6;
-        margin-bottom: 16px;
-        max-width: 400px;
+        margin-bottom: 12px;
       }
       
       .location {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         color: #6b7280;
-        margin-bottom: 28px;
+        margin-bottom: 24px;
         
         .el-icon {
           font-size: 16px;
@@ -278,48 +315,20 @@ onMounted(() => {
       .action-buttons {
         display: flex;
         gap: 16px;
-        flex-wrap: wrap;
         
         .el-button {
           border-radius: 12px;
-          padding: 14px 28px;
+          padding: 12px 24px;
           font-weight: 600;
-          font-size: 16px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           transition: all 0.3s ease;
           
           &:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           }
         }
       }
-    }
-  }
-  
-  // 🎨 右侧背景区域
-  .background-section {
-    flex: 1;
-    min-width: 300px; // 确保右侧有最小宽度
-    position: relative;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    
-    // 🌅 左侧渐变到白色的遮罩
-    .gradient-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: 150px; // 渐变区域宽度
-      background: linear-gradient(
-        to right,
-        rgba(255, 255, 255, 1) 0%,      // 完全白色
-        rgba(255, 255, 255, 0.9) 20%,   // 90%白色
-        rgba(255, 255, 255, 0.6) 50%,   // 60%白色
-        rgba(255, 255, 255, 0.2) 80%,   // 20%白色
-        rgba(255, 255, 255, 0) 100%     // 完全透明
-      );
-      pointer-events: none;
     }
   }
 }
@@ -353,24 +362,7 @@ onMounted(() => {
   }
 }
 
-// 📱 响应式设计 - 移动端垂直布局
-@media (max-width: 1024px) {
-  .profile-content {
-    .user-info-section {
-      max-width: none;
-      padding: 32px;
-    }
-    
-    .background-section {
-      min-width: 250px;
-      
-      .gradient-overlay {
-        width: 100px; // 平板端减小渐变区域
-      }
-    }
-  }
-}
-
+// 响应式设计
 @media (max-width: 768px) {
   .profile-page {
     padding: 15px;
@@ -379,21 +371,41 @@ onMounted(() => {
   .profile-card {
     border-radius: 20px;
     margin-bottom: 24px;
-    min-height: auto;
   }
   
-  // 🔄 移动端改为垂直布局
-  .profile-content {
-    flex-direction: column;
-    min-height: auto;
+  .profile-header {
+    .cover-image {
+      height: 150px;
+      
+      // 移动端调整渐变区域
+      .cover-gradient-overlay {
+        width: 70%; // 移动端覆盖更多区域
+        background: linear-gradient(
+          to right,
+          rgba(255, 255, 255, 0.9) 0%,
+          rgba(255, 255, 255, 0.6) 40%,
+          rgba(255, 255, 255, 0.2) 70%,
+          rgba(255, 255, 255, 0) 100%
+        );
+      }
+    }
     
-    .user-info-section {
-      padding: 24px;
-      max-width: none;
+    .user-info {
+      padding: 0 24px 32px;
+      
+      .avatar-section {
+        margin-top: -50px;
+        
+        .user-avatar {
+          width: 100px !important;
+          height: 100px !important;
+          border-width: 3px;
+        }
+      }
       
       .user-details {
         .username {
-          font-size: 1.8rem;
+          font-size: 1.6rem;
         }
         
         .stats {
@@ -406,28 +418,12 @@ onMounted(() => {
         }
         
         .action-buttons {
+          flex-direction: column;
+          
           .el-button {
-            flex: 1;
-            padding: 12px 20px;
-            font-size: 14px;
+            width: 100%;
           }
         }
-      }
-    }
-    
-    .background-section {
-      min-width: auto;
-      height: 120px; // 移动端显示为底部条状
-      
-      .gradient-overlay {
-        width: 100%;
-        height: 60px;
-        background: linear-gradient(
-          to bottom,
-          rgba(255, 255, 255, 1) 0%,
-          rgba(255, 255, 255, 0.6) 50%,
-          rgba(255, 255, 255, 0) 100%
-        );
       }
     }
   }
@@ -445,7 +441,7 @@ onMounted(() => {
   }
 }
 
-// 🌙 深色模式适配
+// 深色模式适配
 @media (prefers-color-scheme: dark) {
   .profile-page {
     background: #0f1419;
@@ -454,10 +450,10 @@ onMounted(() => {
   .profile-card {
     background: #1f2937;
     border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  
-  .profile-content {
-    .user-info-section {
+    
+    .user-info {
+      background: #1f2937;
+      
       .user-details {
         .username {
           color: #f9fafb;
@@ -476,38 +472,21 @@ onMounted(() => {
         }
       }
     }
-    
-    // 深色模式下调整渐变为深色背景
-    .background-section .gradient-overlay {
-      background: linear-gradient(
-        to right,
-        rgba(31, 41, 55, 1) 0%,
-        rgba(31, 41, 55, 0.9) 20%,
-        rgba(31, 41, 55, 0.6) 50%,
-        rgba(31, 41, 55, 0.2) 80%,
-        rgba(31, 41, 55, 0) 100%
-      ) !important;
-    }
   }
   
   .posts-section .section-header h2 {
     color: #f9fafb;
   }
-}
-
-// 🎯 特大屏幕优化
-@media (min-width: 1400px) {
-  .profile-content {
-    .user-info-section {
-      max-width: 600px;
-      padding: 50px;
-    }
-    
-    .background-section {
-      .gradient-overlay {
-        width: 200px; // 大屏幕增加渐变区域
-      }
-    }
+  
+  // 深色模式下调整渐变
+  .profile-header .cover-image .cover-gradient-overlay {
+    background: linear-gradient(
+      to right,
+      rgba(31, 41, 55, 0.95) 0%,    // 深色模式背景色
+      rgba(31, 41, 55, 0.8) 30%,
+      rgba(31, 41, 55, 0.4) 60%,
+      rgba(31, 41, 55, 0) 100%
+    ) !important;
   }
 }
 </style>

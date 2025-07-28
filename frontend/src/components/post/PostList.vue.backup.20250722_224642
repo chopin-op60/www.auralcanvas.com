@@ -1,0 +1,77 @@
+<template>
+  <div class="post-list">
+    <div v-if="loading" class="loading-container">
+      <el-skeleton :rows="3" animated />
+    </div>
+    
+    <div v-else-if="posts.length === 0" class="empty-container">
+      <el-empty description="No content yet">
+        <el-button type="primary" @click="$router.push('/post/create')">
+          Create Your First Post
+        </el-button>
+      </el-empty>
+    </div>
+    
+    <div v-else class="posts-container">
+      <div v-for="post in posts" :key="post.id" class="post-item">
+        <PostCard 
+          :post="post" 
+          @post-deleted="handlePostDeleted"
+          @post-updated="handlePostUpdated"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import PostCard from './PostCard.vue'
+
+defineProps({
+  posts: {
+    type: Array,
+    default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['post-deleted', 'post-updated'])
+
+// 传递删除事件到父组件
+const handlePostDeleted = (postId) => {
+  console.log('PostList: Handling post deletion:', postId)
+  emit('post-deleted', postId)
+}
+
+// 传递更新事件到父组件
+const handlePostUpdated = (updateData) => {
+  console.log('PostList: Handling post update:', updateData)
+  emit('post-updated', updateData)
+}
+</script>
+
+<style lang="scss" scoped>
+.post-list {
+  .loading-container {
+    padding: 20px;
+  }
+  
+  .empty-container {
+    padding: 40px 20px;
+    text-align: center;
+  }
+  
+  .posts-container {
+    .post-item {
+      margin-bottom: 20px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+</style>

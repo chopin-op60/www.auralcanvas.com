@@ -19,11 +19,11 @@ export function searchUsers(params) {
 }
 
 // 发送好友请求
-export function sendFriendRequest(userId) {
+export function sendFriendRequest(data) {
   return request({
     url: '/friends/request',
     method: 'post',
-    data: { userId }
+    data
   })
 }
 
@@ -55,14 +55,6 @@ export function removeFriend(friendId) {
 
 // 检查好友状态
 export function checkFriendStatus(userId) {
-  return request({
-    url: `/friends/status/${userId}`,
-    method: 'get'
-  })
-}
-
-// 获取好友关系状态（别名，为了兼容性）
-export function getFriendshipStatus(userId) {
   return request({
     url: `/friends/status/${userId}`,
     method: 'get'

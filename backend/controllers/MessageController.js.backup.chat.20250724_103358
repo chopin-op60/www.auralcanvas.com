@@ -62,7 +62,7 @@ class MessageController extends BaseController {
         }
     });
 
-    // 🔥 发送普通消息 - 增加好友验证
+    // 发送普通消息
     sendMessage = this.handleAsync(async (req, res) => {
         const { conversationId } = req.params;
         const { content, receiverId } = req.body;
@@ -89,10 +89,6 @@ class MessageController extends BaseController {
             this.sendSuccess(res, message, 'Message sent successfully', 201);
         } catch (error) {
             console.error('Error sending message:', error);
-            // 如果是好友验证失败，返回特定错误
-            if (error.message.includes('friends')) {
-                return this.sendError(res, 'You can only send messages to friends', 403, error.message);
-            }
             this.sendError(res, 'Failed to send message', 500, error.message);
         }
     });
@@ -125,9 +121,6 @@ class MessageController extends BaseController {
             this.sendSuccess(res, message, 'Post shared successfully', 201);
         } catch (error) {
             console.error('Error sharing post:', error);
-            if (error.message.includes('friends')) {
-                return this.sendError(res, 'You can only share posts with friends', 403, error.message);
-            }
             this.sendError(res, error.message, 400);
         }
     });
@@ -157,28 +150,6 @@ class MessageController extends BaseController {
         } catch (error) {
             console.error('Error creating conversation:', error);
             this.sendError(res, 'Failed to create conversation', 500, error.message);
-        }
-    });
-
-    // 🔥 新增：删除对话
-    deleteConversation = this.handleAsync(async (req, res) => {
-        const { conversationId } = req.params;
-
-        try {
-            console.log('Deleting conversation:', conversationId, 'for user:', req.user.id);
-            
-            const result = await this.messageService.deleteConversation(conversationId, req.user.id);
-            
-            console.log('Delete conversation result:', result);
-            
-            if (result.permanently_deleted) {
-                this.sendSuccess(res, result, 'Conversation permanently deleted');
-            } else {
-                this.sendSuccess(res, result, 'Conversation hidden successfully');
-            }
-        } catch (error) {
-            console.error('Error deleting conversation:', error);
-            this.sendError(res, 'Failed to delete conversation', 500, error.message);
         }
     });
 

@@ -1,10 +1,14 @@
 @import './base.css';
 
+/* 🔧 修复：限制app容器尺寸，防止影响子组件 */
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
   font-weight: normal;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 a,
@@ -21,15 +25,61 @@ a,
   }
 }
 
+/* 🔧 移除可能导致布局问题的全局样式 */
 @media (min-width: 1024px) {
   body {
-    display: flex;
-    place-items: center;
+    /* 移除可能影响布局的flex设置 */
+    /* display: flex; */
+    /* place-items: center; */
   }
 
   #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+    /* 🔧 移除可能导致布局冲突的网格设置 */
+    /* display: grid; */
+    /* grid-template-columns: 1fr 1fr; */
+    /* padding: 0 2rem; */
+    width: 100%;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0;
   }
+}
+
+/* 🔧 新增：确保所有页面容器都有合理的约束 */
+.page-container {
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* 🔧 Element Plus组件尺寸修正 */
+.el-dialog {
+  max-width: 95vw !important;
+  max-height: 95vh !important;
+}
+
+.el-upload-dragger {
+  box-sizing: border-box !important;
+}
+
+.el-form-item__content {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+/* 🔧 防止图片和媒体内容溢出 */
+img, video, audio, iframe {
+  max-width: 100%;
+  height: auto;
+  box-sizing: border-box;
+}
+
+/* 🔧 确保所有flex容器都有合理约束 */
+.flex-container {
+  display: flex;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }

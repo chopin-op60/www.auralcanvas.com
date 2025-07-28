@@ -9,7 +9,6 @@ router.use(auth);
 // 对话管理
 router.get('/conversations', MessageController.getConversations);
 router.post('/conversations', MessageController.createConversation);
-router.delete('/conversations/:conversationId', MessageController.deleteConversation); // 🔥 新增
 
 // 消息管理
 router.get('/conversations/:conversationId/messages', MessageController.getMessages);

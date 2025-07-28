@@ -26,14 +26,6 @@ export function createOrGetConversation(userId) {
   })
 }
 
-// 🔥 删除对话
-export function deleteConversation(conversationId) {
-  return request({
-    url: `/messages/conversations/${conversationId}`,
-    method: 'delete'
-  })
-}
-
 // 获取对话消息
 export function getConversationMessages(conversationId, params) {
   return request({
