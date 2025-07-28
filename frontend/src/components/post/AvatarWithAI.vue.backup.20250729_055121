@@ -1,0 +1,412 @@
+<template>
+  <div 
+    class="avatar-with-ai"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+  >
+    <!-- AI对话按钮 - 头像正上方 -->
+    <transition name="ai-button-fade">
+      <div 
+        v-if="showAIButton && hasActiveAgent"
+        class="ai-chat-button"
+        @click.stop="openAIChat"
+        @mouseenter="handleButtonEnter"
+        @mouseleave="handleButtonLeave"
+        v-loading="aiLoading"
+      >
+        <el-icon><ChatDotSquare /></el-icon>
+        <span>AI</span>
+      </div>
+    </transition>
+    
+    <!-- 头像 -->
+    <el-avatar 
+      :src="getFileUrl(avatarUrl)" 
+      :size="size"
+      class="clickable-avatar"
+      @click="goToUserProfile(userId)"
+    >
+      <el-icon><User /></el-icon>
+    </el-avatar>
+    
+    <!-- AI聊天对话框 -->
+    <el-dialog
+      v-model="chatDialogVisible"
+      :title="agentInfo?.agent_name || `${username}'s AI Assistant`"
+      width="90%"
+      class="ai-chat-dialog"
+      @close="cleanupChat"
+    >
+      <div class="chat-container">
+        <div v-if="chatUrl" class="chat-iframe-container">
+          <iframe
+            :src="chatUrl"
+            class="chat-iframe"
+            frameborder="0"
+            allow="microphone"
+          ></iframe>
+        </div>
+        <div v-else class="loading-chat">
+          <el-icon class="loading-icon"><Loading /></el-icon>
+          <span>Loading AI chat...</span>
+        </div>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { User, ChatDotSquare, Loading } from '@element-plus/icons-vue'
+import { getFileUrl } from '@/utils'
+import { useUserStore } from '@/stores/user'
+import { checkUserAIAgent } from '@/api/users'
+import { getUserAgent } from '@/api/ai'
+
+const props = defineProps({
+  userId: {
+    type: [String, Number],
+    required: true
+  },
+  avatarUrl: {
+    type: String,
+    default: ''
+  },
+  username: {
+    type: String,
+    default: ''
+  },
+  size: {
+    type: Number,
+    default: 40
+  }
+})
+
+const router = useRouter()
+const userStore = useUserStore()
+
+// 状态管理
+const showAIButton = ref(false)
+const hasActiveAgent = ref(false)
+const agentInfo = ref(null)
+const chatDialogVisible = ref(false)
+const chatUrl = ref('')
+const aiLoading = ref(false)
+const checkTimer = ref(null)
+const hideTimer = ref(null)
+
+// 计算属性
+const isCurrentUser = computed(() => 
+  parseInt(props.userId) === parseInt(userStore.userId)
+)
+
+// 鼠标进入头像区域
+const handleMouseEnter = async () => {
+  if (checkTimer.value) {
+    clearTimeout(checkTimer.value)
+    checkTimer.value = null
+  }
+  if (hideTimer.value) {
+    clearTimeout(hideTimer.value)
+    hideTimer.value = null
+  }
+  
+  if (isCurrentUser.value) {
+    return
+  }
+  
+  checkTimer.value = setTimeout(async () => {
+    await checkAIAvailability()
+    if (hasActiveAgent.value) {
+      showAIButton.value = true
+    }
+  }, 200)
+}
+
+// 鼠标离开头像区域
+const handleMouseLeave = () => {
+  if (checkTimer.value) {
+    clearTimeout(checkTimer.value)
+    checkTimer.value = null
+  }
+  
+  hideTimer.value = setTimeout(() => {
+    showAIButton.value = false
+  }, 300)
+}
+
+// 鼠标进入AI按钮
+const handleButtonEnter = () => {
+  if (hideTimer.value) {
+    clearTimeout(hideTimer.value)
+    hideTimer.value = null
+  }
+}
+
+// 鼠标离开AI按钮
+const handleButtonLeave = () => {
+  hideTimer.value = setTimeout(() => {
+    showAIButton.value = false
+  }, 100)
+}
+
+// 检查AI可用性
+const checkAIAvailability = async () => {
+  if (!userStore.isLoggedIn || aiLoading.value) {
+    return
+  }
+  
+  try {
+    aiLoading.value = true
+    const response = await checkUserAIAgent(props.userId)
+    
+    if (response.success && response.data.hasActiveAgent) {
+      hasActiveAgent.value = true
+      agentInfo.value = response.data.agentInfo
+    } else {
+      hasActiveAgent.value = false
+      agentInfo.value = null
+    }
+  } catch (error) {
+    console.log('AI availability check failed:', error.message)
+    hasActiveAgent.value = false
+    agentInfo.value = null
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+// 点击头像跳转
+const goToUserProfile = (userId) => {
+  if (userId) {
+    router.push(`/user/${userId}`)
+  }
+}
+
+// 打开AI对话
+const openAIChat = async () => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('Please login to chat with AI')
+    return
+  }
+  
+  try {
+    const response = await getUserAgent(props.userId)
+    const agentData = response.data
+    
+    if (!agentData.external_script_code) {
+      ElMessage.error('AI chat is not available')
+      return
+    }
+    
+    chatUrl.value = createChatUrl(agentData.external_script_code)
+    chatDialogVisible.value = true
+    
+  } catch (error) {
+    console.error('Failed to open AI chat:', error)
+    ElMessage.error('Cannot access AI chat')
+  }
+}
+
+// 创建聊天URL
+const createChatUrl = (scriptCode) => {
+  if (scriptCode.includes('<iframe')) {
+    const srcMatch = scriptCode.match(/src="([^"]*)"/)
+    if (srcMatch) {
+      return srcMatch[1]
+    }
+  } else if (scriptCode.startsWith('http')) {
+    return scriptCode
+  }
+  
+  return ''
+}
+
+// 清理聊天
+const cleanupChat = () => {
+  chatUrl.value = ''
+}
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (checkTimer.value) {
+    clearTimeout(checkTimer.value)
+  }
+  if (hideTimer.value) {
+    clearTimeout(hideTimer.value)
+  }
+})
+</script>
+
+<style lang="scss" scoped>
+.avatar-with-ai {
+  position: relative;
+  display: inline-block;
+  z-index: 1;
+  
+  .clickable-avatar {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+  
+  .ai-chat-button {
+    // 🔧 关键修复：使用相对定位，确保在头像正上方
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    z-index: 999;
+    min-width: 60px;
+    justify-content: center;
+    
+    // 小三角形指向头像
+    &:after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid #667eea;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+    }
+    
+    &:hover {
+      transform: translateX(-50%) translateY(-2px) scale(1.08);
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+      background: linear-gradient(135deg, #7c8df0 0%, #8b5fbf 100%);
+    }
+    
+    &:active {
+      transform: translateX(-50%) translateY(0) scale(1.02);
+      transition: all 0.1s ease;
+    }
+    
+    .el-icon {
+      font-size: 18px;
+    }
+    
+    span {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+// 按钮动画
+.ai-button-fade-enter-active,
+.ai-button-fade-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-button-fade-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px) scale(0.9);
+}
+
+.ai-button-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px) scale(0.9);
+}
+
+// 聊天对话框样式
+.ai-chat-dialog {
+  .chat-container {
+    height: 600px;
+    border: 1px solid #e4e7ed;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f8f9fa;
+    
+    .chat-iframe-container {
+      height: 100%;
+      width: 100%;
+      
+      .chat-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: white;
+        border-radius: 12px;
+      }
+    }
+    
+    .loading-chat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #909399;
+      gap: 12px;
+      
+      .loading-icon {
+        font-size: 24px;
+        animation: rotate 2s linear infinite;
+      }
+      
+      @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .ai-chat-button {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    border-radius: 20px !important;
+    min-width: 50px !important;
+    
+    .el-icon {
+      font-size: 16px !important;
+    }
+    
+    span {
+      font-size: 11px !important;
+    }
+    
+    &:after {
+      border-left-width: 5px !important;
+      border-right-width: 5px !important;
+      border-top-width: 5px !important;
+    }
+  }
+  
+  .ai-chat-dialog {
+    .chat-container {
+      height: 400px !important;
+    }
+  }
+}
+
+// 无障碍支持
+.ai-chat-button:focus-visible {
+  outline: 2px solid #409EFF;
+  outline-offset: 2px;
+}
+</style>

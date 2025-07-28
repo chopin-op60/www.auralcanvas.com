@@ -589,8 +589,6 @@ onMounted(() => {
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.3s;
-  // 🔧 关键修复：确保AI按钮不被裁剪
-  overflow: visible !important;
   
   &:hover {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
@@ -643,8 +641,6 @@ onMounted(() => {
 // 转发评论样式
 .repost-comment {
   margin-bottom: 16px;
-  // 🔧 确保转发评论区也不裁剪AI按钮
-  overflow: visible !important;
   
   .repost-comment-content {
     display: flex;
@@ -653,8 +649,6 @@ onMounted(() => {
     background: #f8f9fa;
     padding: 12px;
     border-radius: 8px;
-    // 🔧 确保内容区域不裁剪
-    overflow: visible !important;
     
     .comment-text {
       flex: 1;
@@ -668,16 +662,11 @@ onMounted(() => {
 
 // 原帖样式
 .original-post {
-  // 🔧 确保原帖区域不裁剪AI按钮
-  overflow: visible !important;
-  
   &.is-repost {
     border: 1px solid #e4e7ed;
     border-radius: 8px;
     padding: 16px;
     background: #fafbfc;
-    // 🔧 转发帖子也要保持visible
-    overflow: visible !important;
   }
 }
 
@@ -692,8 +681,6 @@ onMounted(() => {
     gap: 12px;
     margin-bottom: 15px;
     flex: 1;
-    // 🔧 关键修复：用户信息区域不裁剪AI按钮
-    overflow: visible !important;
     
     .user-details {
       .username {

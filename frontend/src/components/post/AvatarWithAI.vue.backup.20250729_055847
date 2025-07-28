@@ -1,6 +1,5 @@
 <template>
   <div 
-    ref="avatarContainer"
     class="avatar-with-ai"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
@@ -16,7 +15,7 @@
     </el-avatar>
   </div>
   
-  <!-- 🔧 关键修复：AI按钮Portal到body，避免父容器遮挡 -->
+  <!-- 🔧 关键修复：AI按钮移到portal，直接渲染到body，避免被父容器遮挡 -->
   <teleport to="body">
     <transition name="ai-button-fade">
       <div 
@@ -24,8 +23,8 @@
         class="ai-chat-button-portal"
         :style="buttonPosition"
         @click.stop="openAIChat"
-        @mouseenter="handleButtonMouseEnter"
-        @mouseleave="handleButtonMouseLeave"
+        @mouseenter="handleButtonEnter"
+        @mouseleave="handleButtonLeave"
         v-loading="aiLoading"
       >
         <el-icon><ChatDotSquare /></el-icon>
@@ -90,7 +89,6 @@ const props = defineProps({
 
 const router = useRouter()
 const userStore = useUserStore()
-const avatarContainer = ref(null)
 
 // 状态管理
 const showAIButton = ref(false)
@@ -102,47 +100,26 @@ const aiLoading = ref(false)
 const checkTimer = ref(null)
 const hideTimer = ref(null)
 const buttonPosition = ref(null)
-const updateTimer = ref(null)
 
 // 计算属性
 const isCurrentUser = computed(() => 
   parseInt(props.userId) === parseInt(userStore.userId)
 )
 
-// 🔧 关键功能：精确计算AI按钮位置
+// 🔧 关键功能：计算按钮绝对位置
 const calculateButtonPosition = () => {
-  if (!avatarContainer.value) return null
+  const avatarEl = document.querySelector('.avatar-with-ai .clickable-avatar')
+  if (!avatarEl) return null
   
-  const avatarElement = avatarContainer.value.querySelector('.clickable-avatar')
-  if (!avatarElement) return null
-  
-  const rect = avatarElement.getBoundingClientRect()
-  
-  // 检查元素是否在视口内
-  if (rect.width === 0 || rect.height === 0) return null
-  
-  const buttonWidth = 70 // AI按钮预估宽度
-  const buttonHeight = 40 // AI按钮预估高度
-  const gap = 12 // 与头像的间距
+  const rect = avatarEl.getBoundingClientRect()
+  const scrollY = window.scrollY
+  const scrollX = window.scrollX
   
   return {
     position: 'fixed',
-    top: `${Math.max(10, rect.top - buttonHeight - gap)}px`,
-    left: `${rect.left + rect.width / 2 - buttonWidth / 2}px`,
-    zIndex: '99999',
-    pointerEvents: 'auto'
-  }
-}
-
-// 🔧 更新按钮位置（滚动时）
-const updateButtonPosition = () => {
-  if (showAIButton.value && hasActiveAgent.value) {
-    buttonPosition.value = calculateButtonPosition()
-    
-    // 如果计算失败，隐藏按钮
-    if (!buttonPosition.value) {
-      showAIButton.value = false
-    }
+    top: `${rect.top - 50}px`, // 头像上方50px
+    left: `${rect.left + rect.width / 2 - 30}px`, // 居中对齐，按钮宽度约60px
+    zIndex: '9999'
   }
 }
 
@@ -164,19 +141,10 @@ const handleMouseEnter = async () => {
   checkTimer.value = setTimeout(async () => {
     await checkAIAvailability()
     if (hasActiveAgent.value) {
+      // 🔧 计算按钮位置
       await nextTick()
       buttonPosition.value = calculateButtonPosition()
-      
-      if (buttonPosition.value) {
-        showAIButton.value = true
-        
-        // 🔧 监听滚动事件，实时更新位置
-        window.addEventListener('scroll', updateButtonPosition, { passive: true })
-        window.addEventListener('resize', updateButtonPosition, { passive: true })
-        
-        // 🔧 定时更新位置（应对动态内容）
-        updateTimer.value = setInterval(updateButtonPosition, 200)
-      }
+      showAIButton.value = true
     }
   }, 200)
 }
@@ -189,41 +157,25 @@ const handleMouseLeave = () => {
   }
   
   hideTimer.value = setTimeout(() => {
-    cleanupButton()
+    showAIButton.value = false
+    buttonPosition.value = null
   }, 300)
 }
 
 // 鼠标进入AI按钮
-const handleButtonMouseEnter = () => {
+const handleButtonEnter = () => {
   if (hideTimer.value) {
     clearTimeout(hideTimer.value)
     hideTimer.value = null
   }
-  
-  // 🔧 进入按钮时更新位置
-  updateButtonPosition()
 }
 
 // 鼠标离开AI按钮
-const handleButtonMouseLeave = () => {
+const handleButtonLeave = () => {
   hideTimer.value = setTimeout(() => {
-    cleanupButton()
-  }, 150)
-}
-
-// 🔧 清理按钮和事件监听器
-const cleanupButton = () => {
-  showAIButton.value = false
-  buttonPosition.value = null
-  
-  // 清理事件监听器
-  window.removeEventListener('scroll', updateButtonPosition)
-  window.removeEventListener('resize', updateButtonPosition)
-  
-  if (updateTimer.value) {
-    clearInterval(updateTimer.value)
-    updateTimer.value = null
-  }
+    showAIButton.value = false
+    buttonPosition.value = null
+  }, 100)
 }
 
 // 检查AI可用性
@@ -265,9 +217,6 @@ const openAIChat = async () => {
     ElMessage.warning('Please login to chat with AI')
     return
   }
-  
-  // 🔧 点击后立即隐藏按钮
-  cleanupButton()
   
   try {
     const response = await getUserAgent(props.userId)
@@ -314,7 +263,6 @@ onUnmounted(() => {
   if (hideTimer.value) {
     clearTimeout(hideTimer.value)
   }
-  cleanupButton()
 })
 </script>
 
@@ -333,6 +281,7 @@ onUnmounted(() => {
   }
 }
 
+// 聊天对话框样式
 .ai-chat-dialog {
   .chat-container {
     height: 600px;
@@ -376,10 +325,11 @@ onUnmounted(() => {
   }
 }
 
+// 响应式设计
 @media (max-width: 768px) {
   .ai-chat-dialog {
     .chat-container {
-      height: 400px;
+      height: 400px !important;
     }
   }
 }
@@ -390,38 +340,36 @@ onUnmounted(() => {
 .ai-chat-button-portal {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 12px 18px;
-  border-radius: 26px;
+  padding: 10px 16px;
+  border-radius: 24px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  min-width: 70px;
+  min-width: 60px;
   justify-content: center;
   pointer-events: auto;
-  user-select: none;
   
-  // 🔧 小三角形指向头像
+  // 小三角形指向头像
   &:after {
     content: '';
     position: absolute;
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border-left: 7px solid transparent;
-    border-right: 7px solid transparent;
-    border-top: 7px solid #667eea;
-    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #667eea;
   }
   
   &:hover {
     transform: translateY(-2px) scale(1.08);
-    box-shadow: 0 10px 28px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
     background: linear-gradient(135deg, #7c8df0 0%, #8b5fbf 100%);
   }
   
@@ -431,17 +379,17 @@ onUnmounted(() => {
   }
   
   .el-icon {
-    font-size: 20px;
+    font-size: 18px;
   }
   
   span {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
   }
 }
 
-// 🔧 按钮动画优化
+// 按钮动画
 .ai-button-fade-enter-active,
 .ai-button-fade-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -449,21 +397,21 @@ onUnmounted(() => {
 
 .ai-button-fade-enter-from {
   opacity: 0 !important;
-  transform: translateY(-15px) scale(0.8) !important;
+  transform: translateY(-10px) scale(0.9) !important;
 }
 
 .ai-button-fade-leave-to {
   opacity: 0 !important;
-  transform: translateY(-15px) scale(0.8) !important;
+  transform: translateY(-10px) scale(0.9) !important;
 }
 
-// 🔧 移动端适配
+// 移动端适配
 @media (max-width: 768px) {
   .ai-chat-button-portal {
-    padding: 10px 14px !important;
+    padding: 8px 12px !important;
     font-size: 12px !important;
-    border-radius: 22px !important;
-    min-width: 56px !important;
+    border-radius: 20px !important;
+    min-width: 50px !important;
     
     .el-icon {
       font-size: 16px !important;
@@ -478,27 +426,6 @@ onUnmounted(() => {
       border-right-width: 5px !important;
       border-top-width: 5px !important;
     }
-  }
-}
-
-// 🔧 高对比度模式支持
-@media (prefers-contrast: high) {
-  .ai-chat-button-portal {
-    border: 2px solid white;
-    background: #0066cc !important;
-    
-    &:hover {
-      background: #004499 !important;
-    }
-  }
-}
-
-// 🔧 减少动画模式支持
-@media (prefers-reduced-motion: reduce) {
-  .ai-chat-button-portal,
-  .ai-button-fade-enter-active,
-  .ai-button-fade-leave-active {
-    transition: none !important;
   }
 }
 </style>
